@@ -1,20 +1,20 @@
-import { Controller, KeyboardDevice } from '@hmans/controlfreak'
-import create, { StateSelector } from 'zustand'
+import { Controller, KeyboardDevice } from '@hmans/controlfreak';
+import create, { StateSelector } from 'zustand';
 
 interface ControllerState {
-  controller: Controller,
-  keyboard: KeyboardDevice
+  controller: Controller;
+  keyboard: KeyboardDevice;
 }
 
 const useStore = create<ControllerState>((set, get) => {
-  const controller = new Controller()
-  const keyboard = new KeyboardDevice()
-  controller.addDevice(keyboard)
+  const controller = new Controller();
+  const keyboard = new KeyboardDevice();
+  controller.addDevice(keyboard);
 
-  return { controller, keyboard }
-})
+  return { controller, keyboard };
+});
 
-export const useController = (selector?: StateSelector<any, Controller>) => {
-  const controller = useStore(selector ?? ((state) => state.controller))
-  return controller
-}
+export const useController = (selector?: StateSelector<any, any>) => {
+  const controller = useStore(selector ?? ((state) => state.controller));
+  return controller;
+};
