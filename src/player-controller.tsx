@@ -8,6 +8,25 @@ import { createMachine } from 'xstate';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
 
+type Controls = {
+  move: {
+    [key: string]: boolean;
+    forward: boolean;
+    backward: boolean;
+    left: boolean;
+    right: boolean;
+  };
+  jump: boolean;
+};
+
+type DirectionVec = {
+  [key: string]: [number, number, number];
+  forward: [number, number, number];
+  backward: [number, number, number];
+  left: [number, number, number];
+  right: [number, number, number];
+};
+
 const playerControlsMachine = createMachine({
   id: 'player-controls',
   initial: 'idling',
@@ -34,16 +53,6 @@ const bindPlayerControls = (controller: Controller, keyboard: KeyboardDevice) =>
     controller.removeControl('move');
     controller.removeControl('jump');
   };
-};
-
-type Controls = {
-  move: {
-    forward: boolean;
-    backward: boolean;
-    left: boolean;
-    right: boolean;
-  };
-  jump: boolean;
 };
 
 export function usePlayerControls() {
@@ -73,7 +82,7 @@ export function usePlayerControls() {
 export function PlayerController({ children }: { children: React.ReactNode }) {
   const playerRef = useRef<THREE.Group>(null!);
   const [temp] = useState(() => ({ vec: new THREE.Vector3(), box: new THREE.Box3() }));
-  const directionVec = { forward: [0, 0, -1], backward: [0, 0, 1], left: [-1, 0, 0], right: [1, 0, 0] };
+  const directionVec: DirectionVec = { forward: [0, 0, -1], backward: [0, 0, 1], left: [-1, 0, 0], right: [1, 0, 0] };
   const [upVec] = useState(() => new THREE.Vector3(0, 1, 0));
 
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
