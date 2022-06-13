@@ -15,8 +15,7 @@ export function Collider({ children }: ColliderProps) {
   const init = useRef(true);
 
   useEffect(() => {
-    if (!ref.current) return;
-    if (!init.current) return;
+    if (!ref.current || !init.current) return;
     const geometries: THREE.BufferGeometry[] = [];
 
     // Force a matrix world update to make are all calculations are synchronized
@@ -44,12 +43,15 @@ export function Collider({ children }: ColliderProps) {
     // Create a BVH for the geometry
     merged.boundsTree = new MeshBVH(merged);
     // Create and store a mesh with BVH. We add a wireframe material for debugging
-    const collider = new THREE.Mesh(merged);
-    if (collider.material instanceof THREE.MeshBasicMaterial) {
-      collider.material.wireframe = true;
-      collider.material.opacity = 0.5;
-      collider.material.transparent = true;
-    }
+    const collider = new THREE.Mesh(
+      merged,
+      new THREE.MeshBasicMaterial({
+        wireframe: true,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      }),
+    );
     setCollider(collider);
     // Set flag so we don't init our BVH more than once
     init.current = false;

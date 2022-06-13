@@ -1,12 +1,13 @@
 import { VectorControl, BooleanControl, Controller, KeyboardDevice } from '@hmans/controlfreak';
-import { useFrame } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useController } from './controller';
 import { Stages } from './app';
 import * as THREE from 'three';
 import { createMachine } from 'xstate';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
+import { useHelper } from '@react-three/drei';
 
 type Controls = {
   move: {
@@ -80,22 +81,45 @@ export function usePlayerControls() {
 }
 
 export function PlayerController({ children }: { children: React.ReactNode }) {
+  // Refs
   const playerRef = useRef<THREE.Group>(null!);
-  const [temp] = useState(() => ({ vec: new THREE.Vector3(), box: new THREE.Box3() }));
+  const lineRef = useRef<THREE.Line>(null!);
+
+  // Three instances and consts
+  const [temp] = useState(() => ({
+    vec: new THREE.Vector3(),
+    vec2: new THREE.Vector3(),
+    box: new THREE.Box3(),
+    segment: new THREE.Line3(),
+  }));
   const directionVec: DirectionVec = { forward: [0, 0, -1], backward: [0, 0, 1], left: [-1, 0, 0], right: [1, 0, 0] };
   const [upVec] = useState(() => new THREE.Vector3(0, 1, 0));
+  // A line segment that points down. We will update its end vector in an effect
+  const [playerSegment] = useState(() => new THREE.Line3(new THREE.Vector3(), new THREE.Vector3(0, -1, 0)));
 
+  // Stored states
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
   const [fsm, send] = useMachine(playerControlsMachine);
   const collider = useStore((state) => state.collider);
 
-  const playerSpeed = 6;
+  // Player controls and consts
   const controls = usePlayerControls();
-
-  const once = useRef(true);
+  const playerSpeed = 6;
+  const playerRadius = useRef(0);
 
   // Bind move and jump controls
   useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
+
+  // Set math objects based on the player's size. We will use these to calculate intersections later
+  useEffect(() => {
+    if (playerRef.current) {
+      const vec = new THREE.Vector3();
+      temp.box.setFromObject(playerRef.current);
+      temp.box.getSize(vec);
+      playerSegment.end.copy(new THREE.Vector3(0, -vec.y / 2, 0));
+      playerRadius.current = vec.x / 2;
+    }
+  }, []);
 
   useFrame((state, delta) => {
     const { move } = controls.current;
@@ -123,17 +147,82 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
 
   useFrame(() => {
     if (!collider?.geometry?.boundsTree) return;
-    if (!once.current) return;
-    temp.box.setFromObject(playerRef.current);
-    // console.log(collider.geometry.boundsTree)
-    // collider.geometry.boundsTree.shapecast({
-    //   intersectBounds: (box) => box.intersectsBox(temp.box),
-    //   intersectsTriangle: (tri) => {
-    //     console.log('help')
-    //   }
-    // })
-    once.current = false;
+
+    // Prepare the line segment that we will use to check for collisions
+    temp.segment.copy(playerSegment);
+    temp.segment.start.applyMatrix4(playerRef.current.matrixWorld);
+    temp.segment.end.applyMatrix4(playerRef.current.matrixWorld);
+
+    collider.geometry.boundsTree.shapecast({
+      // Use the character's box to check for collisions
+      intersectsBounds: (box) => box.intersectsBox(temp.box),
+      // Check if the triangle is intersecting the capsule and adjust the capsule position if it is
+      // To do this we will use the line segment that starts at the origin of the character and ends at the top
+      intersectsTriangle: (tri) => {
+        const triPoint = temp.vec;
+        const capsulePoint = temp.vec2;
+        // Get the distance between interescting triangle and line
+        const distance = tri.closestPointToSegment(temp.segment, triPoint, capsulePoint);
+        // If the distance is less than the radius of the character, we have a collision
+        if (distance < playerRadius.current) {
+          // Get depth and direction of the collision
+          const depth = playerRadius.current - distance;
+          const direction = capsulePoint.sub(triPoint).normalize();
+          // Move the line segment so there is no longer an intersection with the character's box
+          temp.segment.start.addScaledVector(direction, depth);
+          temp.segment.end.addScaledVector(direction, depth);
+        }
+      },
+    });
+
+    // Get the adjusted position of the capsule collider in world space after checking
+    // triangle collisions and moving it. temp.segment.start is assumed to be
+    // the origin of the player model
+    const newPosition = temp.vec;
+    newPosition.copy(temp.segment.start);
+
+    // Check how much the collider was moved
+    const deltaVector = temp.vec2;
+    deltaVector.subVectors(newPosition, playerRef.current.position);
+
+    // If the player was primarily adjusted vertically we assume it's on something we should consider ground
+    // playerIsOnGround = deltaVector.y > Math.abs( delta * playerVelocity.y * 0.25 );
+
+    const offset = Math.max(0.0, deltaVector.length() - 1e-5);
+    deltaVector.normalize().multiplyScalar(offset);
+
+    // Adjust the player model
+    playerRef.current.position.add(deltaVector);
+
+    // Line debug
+    if (lineRef.current) {
+      const points = [];
+      points.push(temp.segment.start);
+      points.push(temp.segment.end);
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      lineRef.current.geometry = geometry;
+    }
   }, Stages.Update);
+
+  // Visualizes my Line3 segment for debug
+  const scene = useThree((state) => state.scene);
+  useEffect(() => {
+    const points = [];
+    points.push(temp.segment.start);
+    points.push(temp.segment.end);
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 'red', depthTest: false }));
+    scene.add(line);
+    lineRef.current = line;
+
+    return () => {
+      scene.remove(line);
+    };
+  }, []);
+
+  // Box3 visualizer/debug
+  useHelper(playerRef, THREE.BoxHelper);
 
   return <group ref={playerRef}>{children}</group>;
 }
