@@ -1,14 +1,14 @@
 import { VectorControl, BooleanControl, Controller, KeyboardDevice } from '@hmans/controlfreak';
-import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef, useState } from 'react';
 import { useController } from './controller';
 import { Stages } from './app';
 import * as THREE from 'three';
-import { createMachine } from 'xstate';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
 import { useHelper } from '@react-three/drei';
 import { useLineDebug } from './use-line-debug';
+import { playerControlsMachine } from './player-machine';
 
 type Controls = {
   move: {
@@ -28,24 +28,6 @@ type DirectionVec = {
   left: [number, number, number];
   right: [number, number, number];
 };
-
-const playerControlsMachine = createMachine({
-  id: 'player-controls',
-  initial: 'idling',
-  states: {
-    idling: {
-      on: {
-        RUN: { target: 'running' },
-      },
-    },
-    running: {
-      on: {
-        IDLE: { target: 'idling' },
-      },
-    },
-    jumping: {},
-  },
-});
 
 const bindPlayerControls = (controller: Controller, keyboard: KeyboardDevice) => {
   controller.addControl('move', VectorControl).addStep(keyboard.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD'));
@@ -95,8 +77,6 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
   }));
   const directionVec: DirectionVec = { forward: [0, 0, -1], backward: [0, 0, 1], left: [-1, 0, 0], right: [1, 0, 0] };
   const [upVec] = useState(() => new THREE.Vector3(0, 1, 0));
-  // A line segment that points down. We will update its end vector in an effect
-  const [playerSegment] = useState(() => new THREE.Line3(new THREE.Vector3(), new THREE.Vector3(0, -1, 0)));
 
   // Stored states
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
@@ -106,7 +86,12 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
   // Player controls and consts
   const controls = usePlayerControls();
   const playerSpeed = 6;
+  const gravity = -9.81;
   const playerRadius = useRef(0);
+  const playerIsOnGround = useRef(false);
+  const [playerVelocity] = useState(() => new THREE.Vector3());
+  // A line segment that will be used for calculating collision. We will set its origin to the character in an effect
+  const [playerSegment] = useState(() => new THREE.Line3(new THREE.Vector3(), new THREE.Vector3(0, -1, 0)));
 
   // Bind move and jump controls
   useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
@@ -122,9 +107,15 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Player movement loop
   useFrame((state, delta) => {
-    const { move } = controls.current;
+    const { move, jump: isJumping } = controls.current;
     const isMoving = move.forward || move.backward || move.left || move.right;
+
+    // Apply gravity to the character
+    playerVelocity.y += playerIsOnGround.current ? 0 : delta * gravity;
+    // Apply velocities to the character
+    playerRef.current.position.addScaledVector(playerVelocity, delta);
 
     if (isMoving) {
       send('RUN');
@@ -141,12 +132,17 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
         temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
         playerRef.current.position.addScaledVector(temp.vec, playerSpeed * delta);
       }
+      // Update the character's matrix for movement now so we can update it again for collision later
+      playerRef.current.updateMatrixWorld();
     } else {
       send('IDLE');
     }
+    if (isJumping) {
+      if (playerIsOnGround.current) playerVelocity.y = 10.0;
+    }
   }, Stages.Update);
 
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (!collider?.geometry?.boundsTree) return;
 
     // Prepare the line segment that we will use to check for collisions
@@ -176,9 +172,8 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // Get the adjusted position of the capsule collider in world space after checking
-    // triangle collisions and moving it. temp.segment.start is assumed to be
-    // the origin of the player model
+    // Get the adjusted position of the capsule collider in world space after checking triangle collisions
+    // and moving it. temp.segment.start is assumed to be the origin of the player model
     const newPosition = temp.vec;
     newPosition.copy(temp.segment.start);
 
@@ -187,13 +182,20 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     deltaVector.subVectors(newPosition, playerRef.current.position);
 
     // If the player was primarily adjusted vertically we assume it's on something we should consider ground
-    // playerIsOnGround = deltaVector.y > Math.abs( delta * playerVelocity.y * 0.25 );
+    playerIsOnGround.current = deltaVector.y > Math.abs(delta * playerVelocity.y * 0.25);
 
     const offset = Math.max(0.0, deltaVector.length() - 1e-5);
     deltaVector.normalize().multiplyScalar(offset);
 
     // Adjust the player model
-    // playerRef.current.position.add(deltaVector);
+    playerRef.current.position.add(deltaVector);
+
+    if (!playerIsOnGround.current) {
+      deltaVector.normalize();
+      playerVelocity.addScaledVector(deltaVector, -deltaVector.dot(playerVelocity));
+    } else {
+      playerVelocity.set(0, 0, 0);
+    }
   }, Stages.Update);
 
   // Box3 and Line3 visualizers for debugging
