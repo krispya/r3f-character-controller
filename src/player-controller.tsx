@@ -8,6 +8,7 @@ import { createMachine } from 'xstate';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
 import { useHelper } from '@react-three/drei';
+import { useLineDebug } from './use-line-debug';
 
 type Controls = {
   move: {
@@ -192,37 +193,12 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     deltaVector.normalize().multiplyScalar(offset);
 
     // Adjust the player model
-    playerRef.current.position.add(deltaVector);
-
-    // Line debug
-    if (lineRef.current) {
-      const points = [];
-      points.push(temp.segment.start);
-      points.push(temp.segment.end);
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      lineRef.current.geometry = geometry;
-    }
+    // playerRef.current.position.add(deltaVector);
   }, Stages.Update);
 
-  // Visualizes my Line3 segment for debug
-  const scene = useThree((state) => state.scene);
-  useEffect(() => {
-    const points = [];
-    points.push(temp.segment.start);
-    points.push(temp.segment.end);
-
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 'red', depthTest: false }));
-    scene.add(line);
-    lineRef.current = line;
-
-    return () => {
-      scene.remove(line);
-    };
-  }, []);
-
-  // Box3 visualizer/debug
+  // Box3 and Line3 visualizers for debugging
   useHelper(playerRef, THREE.BoxHelper);
+  useLineDebug(temp.segment);
 
   return <group ref={playerRef}>{children}</group>;
 }
