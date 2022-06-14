@@ -181,21 +181,21 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     });
 
     // Get the adjusted position of the capsule collider in world space after checking triangle collisions
-    // and moving it. temp.segment.start is assumed to be the origin of the player model
+    // and moving it.
     const newPosition = temp.vec;
     newPosition.copy(temp.segment.start);
 
-    // // Check how much the collider was moved
+    // Check how much the collider was moved
     const deltaVector = temp.vec2;
     deltaVector.subVectors(newPosition, characterRef.current.position);
 
-    // // If the player was primarily adjusted vertically we assume it's on something we should consider ground
+    // If the player was primarily adjusted vertically we assume it's on something we should consider ground
     character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * 0.25);
 
     const offset = Math.max(0.0, deltaVector.length() - 1e-5);
     deltaVector.normalize().multiplyScalar(offset);
 
-    // // Adjust the player model
+    // Adjust the player model
     characterRef.current.position.add(deltaVector);
 
     if (!character.isGrounded) {
