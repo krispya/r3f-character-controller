@@ -28,9 +28,10 @@ function Game() {
 
   return (
     <>
-      <Level scale={[2, 2, 2]} position={[0.5, 0, 0]} />
+      <Level />
+      {/* <Level scale={[2, 2, 2]} position={[0.5, 0, 0]} /> */}
       <PlayerController>
-        <Player />
+        <Player radius={0.5 / 2} length={0.65 / 2} />
       </PlayerController>
 
       <ambientLight intensity={1} />
