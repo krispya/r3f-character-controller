@@ -9,6 +9,7 @@ import { useStore } from './store';
 import { useHelper } from '@react-three/drei';
 import { useLineDebug } from './use-line-debug';
 import { playerControlsMachine } from './player-machine';
+import { useBoxDebug } from './use-box-debug';
 
 type Controls = {
   move: {
@@ -28,6 +29,8 @@ type DirectionVec = {
   left: [number, number, number];
   right: [number, number, number];
 };
+
+const GRAVITY = -9.81;
 
 const bindPlayerControls = (controller: Controller, keyboard: KeyboardDevice) => {
   controller.addControl('move', VectorControl).addStep(keyboard.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD'));
@@ -65,8 +68,7 @@ export function usePlayerControls() {
 
 export function PlayerController({ children }: { children: React.ReactNode }) {
   // Refs
-  const playerRef = useRef<THREE.Group>(null!);
-  const lineRef = useRef<THREE.Line>(null!);
+  const characterRef = useRef<THREE.Group>(null!);
 
   // Three instances and consts
   const [temp] = useState(() => ({
@@ -74,6 +76,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     vec2: new THREE.Vector3(),
     box: new THREE.Box3(),
     segment: new THREE.Line3(),
+    matrix: new THREE.Matrix4(),
   }));
   const directionVec: DirectionVec = { forward: [0, 0, -1], backward: [0, 0, 1], left: [-1, 0, 0], right: [1, 0, 0] };
   const [upVec] = useState(() => new THREE.Vector3(0, 1, 0));
@@ -85,25 +88,21 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
 
   // Player controls and consts
   const controls = usePlayerControls();
-  const playerSpeed = 6;
-  const gravity = -9.81;
-  const playerRadius = useRef(0);
-  const playerIsOnGround = useRef(false);
-  const [playerVelocity] = useState(() => new THREE.Vector3());
-  // A line segment that will be used for calculating collision. We will set its origin to the character in an effect
-  const [playerSegment] = useState(() => new THREE.Line3(new THREE.Vector3(), new THREE.Vector3(0, -1, 0)));
+  const [character] = useState(() => ({ speed: 6, jumpSpeed: 6, isGrounded: false, velocity: new THREE.Vector3() }));
+  const [bounding] = useState(() => ({ radius: 0, length: 0, segment: new THREE.Line3() }));
 
   // Bind move and jump controls
   useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
 
   // Set math objects based on the player's size. We will use these to calculate intersections later
   useEffect(() => {
-    if (playerRef.current) {
+    if (characterRef.current) {
       const vec = new THREE.Vector3();
-      temp.box.setFromObject(playerRef.current);
+      temp.box.setFromObject(characterRef.current);
       temp.box.getSize(vec);
-      playerSegment.end.copy(new THREE.Vector3(0, -vec.y / 2, 0));
-      playerRadius.current = vec.x / 2;
+      bounding.radius = vec.x / 2;
+      bounding.length = vec.y - bounding.radius * 2;
+      bounding.segment.end.copy(new THREE.Vector3(0, -bounding.length, 0));
     }
   }, []);
 
@@ -112,43 +111,52 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     const { move, jump: isJumping } = controls.current;
     const isMoving = move.forward || move.backward || move.left || move.right;
 
-    // Apply gravity to the character
-    playerVelocity.y += playerIsOnGround.current ? 0 : delta * gravity;
-    // Apply velocities to the character
-    playerRef.current.position.addScaledVector(playerVelocity, delta);
+    // Apply gravity and velocities to the character
+    character.velocity.y += character.isGrounded ? 0 : delta * GRAVITY;
+    characterRef.current.position.addScaledVector(character.velocity, delta);
 
     if (isMoving) {
       send('RUN');
 
       // Get the angle between the camera and character
       const angle = Math.atan2(
-        state.camera.position.x - playerRef.current.position.x,
-        state.camera.position.z - playerRef.current.position.z,
+        state.camera.position.x - characterRef.current.position.x,
+        state.camera.position.z - characterRef.current.position.z,
       );
 
       // Loop over move directions and apply movement to the character
       for (const direction in move) {
         if (!move[direction]) continue;
         temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
-        playerRef.current.position.addScaledVector(temp.vec, playerSpeed * delta);
+        characterRef.current.position.addScaledVector(temp.vec, character.speed * delta);
       }
-      // Update the character's matrix for movement now so we can update it again for collision later
-      playerRef.current.updateMatrixWorld();
+    } else if (isJumping) {
+      send('JUMP');
+      character.velocity.y = character.jumpSpeed;
     } else {
       send('IDLE');
     }
-    if (isJumping) {
-      if (playerIsOnGround.current) playerVelocity.y = 10.0;
-    }
+    // Update the character's matrix for movement now so we can update it again for collision later
+    characterRef.current.updateMatrixWorld();
   }, Stages.Update);
 
   useFrame((state, delta) => {
     if (!collider?.geometry?.boundsTree) return;
 
     // Prepare the line segment that we will use to check for collisions
-    temp.segment.copy(playerSegment);
-    temp.segment.start.applyMatrix4(playerRef.current.matrixWorld);
-    temp.segment.end.applyMatrix4(playerRef.current.matrixWorld);
+    temp.segment.copy(bounding.segment);
+    temp.segment.start.applyMatrix4(characterRef.current.matrixWorld);
+    temp.segment.end.applyMatrix4(characterRef.current.matrixWorld);
+
+    // Build a bounding box that represents the collision area
+    // The setFromObject and manual box3 build method should yield the same result
+    // I'm not sure which is faster, but I was doing this for debug
+    temp.box.makeEmpty();
+    // temp.box.setFromObject(characterRef.current);
+    temp.box.expandByPoint(temp.segment.start);
+    temp.box.expandByPoint(temp.segment.end);
+    temp.box.min.addScalar(-bounding.radius);
+    temp.box.max.addScalar(bounding.radius);
 
     collider.geometry.boundsTree.shapecast({
       // Use the character's box to check for collisions
@@ -161,9 +169,9 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
         // Get the distance between interescting triangle and line
         const distance = tri.closestPointToSegment(temp.segment, triPoint, capsulePoint);
         // If the distance is less than the radius of the character, we have a collision
-        if (distance < playerRadius.current) {
+        if (distance < bounding.radius) {
           // Get depth and direction of the collision
-          const depth = playerRadius.current - distance;
+          const depth = bounding.radius - distance;
           const direction = capsulePoint.sub(triPoint).normalize();
           // Move the line segment so there is no longer an intersection with the character's box
           temp.segment.start.addScaledVector(direction, depth);
@@ -177,30 +185,30 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     const newPosition = temp.vec;
     newPosition.copy(temp.segment.start);
 
-    // Check how much the collider was moved
+    // // Check how much the collider was moved
     const deltaVector = temp.vec2;
-    deltaVector.subVectors(newPosition, playerRef.current.position);
+    deltaVector.subVectors(newPosition, characterRef.current.position);
 
-    // If the player was primarily adjusted vertically we assume it's on something we should consider ground
-    playerIsOnGround.current = deltaVector.y > Math.abs(delta * playerVelocity.y * 0.25);
+    // // If the player was primarily adjusted vertically we assume it's on something we should consider ground
+    character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * 0.25);
 
     const offset = Math.max(0.0, deltaVector.length() - 1e-5);
     deltaVector.normalize().multiplyScalar(offset);
 
-    // Adjust the player model
-    playerRef.current.position.add(deltaVector);
+    // // Adjust the player model
+    characterRef.current.position.add(deltaVector);
 
-    if (!playerIsOnGround.current) {
+    if (!character.isGrounded) {
       deltaVector.normalize();
-      playerVelocity.addScaledVector(deltaVector, -deltaVector.dot(playerVelocity));
+      character.velocity.addScaledVector(deltaVector, -deltaVector.dot(character.velocity));
     } else {
-      playerVelocity.set(0, 0, 0);
+      character.velocity.set(0, 0, 0);
     }
   }, Stages.Update);
 
   // Box3 and Line3 visualizers for debugging
-  useHelper(playerRef, THREE.BoxHelper);
   useLineDebug(temp.segment);
+  useBoxDebug(temp.box);
 
-  return <group ref={playerRef}>{children}</group>;
+  return <group ref={characterRef}>{children}</group>;
 }
