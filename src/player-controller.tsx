@@ -132,7 +132,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
       }
     } else if (isJumping) {
       send('JUMP');
-      character.velocity.y = character.jumpSpeed;
+      if (character.isGrounded) character.velocity.y = character.jumpSpeed;
     } else {
       send('IDLE');
     }
@@ -162,7 +162,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
       // Use the character's box to check for collisions
       intersectsBounds: (box) => box.intersectsBox(temp.box),
       // Check if the triangle is intersecting the capsule and adjust the capsule position if it is
-      // To do this we will use the line segment that starts at the origin of the character and ends at the top
+      // To do this we will use the line segment and assume the bounds are a radius distance from it in every direction
       intersectsTriangle: (tri) => {
         const triPoint = temp.vec;
         const capsulePoint = temp.vec2;
