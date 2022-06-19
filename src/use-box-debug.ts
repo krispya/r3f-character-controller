@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Stages } from './app';
 
 export function useBoxDebug(box3: THREE.Box3 | null = null) {
-  const lineRef = useRef<THREE.LineSegments>(null!);
+  const boxRef = useRef<THREE.LineSegments>(null!);
   const scene = useThree((state) => state.scene);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function useBoxDebug(box3: THREE.Box3 | null = null) {
     line.matrixAutoUpdate = false;
     scene.add(line);
 
-    lineRef.current = line;
+    boxRef.current = line;
 
     return () => {
       scene.remove(line);
@@ -34,7 +34,7 @@ export function useBoxDebug(box3: THREE.Box3 | null = null) {
     const min = box3.min;
     const max = box3.max;
 
-    const position = lineRef.current.geometry.attributes.position;
+    const position = boxRef.current.geometry.attributes.position;
     const array = position.array as number[];
 
     array[0] = max.x;
@@ -64,6 +64,6 @@ export function useBoxDebug(box3: THREE.Box3 | null = null) {
 
     position.needsUpdate = true;
 
-    lineRef.current.geometry.computeBoundingSphere();
+    boxRef.current.geometry.computeBoundingSphere();
   }, Stages.Late);
 }
