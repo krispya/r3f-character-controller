@@ -18,7 +18,12 @@ export function Collider({ children }: ColliderProps) {
     if (!ref.current || !init.current) return;
     const geometries: THREE.BufferGeometry[] = [];
 
-    // Force a matrix world update to make are all calculations are synchronized
+    // This is more imporant than it seems. We want to make sure our geometry is centered with the Box3
+    // to aboid floating point precision headaches.
+    const box = new THREE.Box3();
+    box.setFromObject(ref.current);
+    box.getCenter(ref.current.position).negate();
+    // Force a matrix world update to make sure all calculations are synchronized
     ref.current.updateMatrixWorld();
 
     // Traverse the child meshes so we can create a merged gemoetry for BVH calculations.
@@ -38,7 +43,7 @@ export function Collider({ children }: ColliderProps) {
         geometries.push(cloned);
       }
     });
-    // Create and store a local copy of the merged geometry
+    // Merge the geometry
     const merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
     // Create a BVH for the geometry
     merged.boundsTree = new MeshBVH(merged);
@@ -66,10 +71,8 @@ export function Collider({ children }: ColliderProps) {
 
   return (
     <>
-      <group ref={ref}>
-        <group visible={true}>{children}</group>
-      </group>
-      {collider && <primitive visible={false} object={collider} />}
+      <group ref={ref}>{children}</group>
+      {collider && <primitive visible={true} object={collider} />}
       {visualizer && <primitive visible={false} object={visualizer} />}
     </>
   );
