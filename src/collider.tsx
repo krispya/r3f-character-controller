@@ -72,7 +72,7 @@ export function Collider({ children }: ColliderProps) {
   return (
     <>
       <group ref={ref}>{children}</group>
-      {collider && <primitive visible={true} object={collider} />}
+      {collider && <primitive visible={false} object={collider} />}
       {visualizer && <primitive visible={false} object={visualizer} />}
     </>
   );
