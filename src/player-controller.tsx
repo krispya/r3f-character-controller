@@ -88,7 +88,13 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
 
   // Player controls and consts
   const controls = usePlayerControls();
-  const [character] = useState(() => ({ speed: 6, jumpSpeed: 6, isGrounded: false, velocity: new THREE.Vector3() }));
+  const [character] = useState(() => ({
+    speed: 6,
+    jumpSpeed: 6,
+    groundScalar: 0.95,
+    isGrounded: false,
+    velocity: new THREE.Vector3(),
+  }));
   const [bounding] = useState(() => ({ radius: 0, length: 0, segment: new THREE.Line3() }));
 
   // Bind move and jump controls
@@ -180,8 +186,8 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
       },
     });
 
-    // Get the adjusted position of the capsule collider in world space after checking triangle collisions
-    // and moving it.
+    // Get the adjusted position of the capsule collider in world space after checking
+    // triangle collisions and moving it. We use temp.segment.start as the origin
     const newPosition = temp.vec;
     newPosition.copy(temp.segment.start);
 
@@ -189,19 +195,23 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     const deltaVector = temp.vec2;
     deltaVector.subVectors(newPosition, characterRef.current.position);
 
-    // If the player was primarily adjusted vertically we assume it's on something we should consider ground
-    character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * 0.25);
+    // If the player was primarily adjusted vertically we assume it's on something we should consider ground.
+    // The groundScalar helps us make the character more sticky or slippery. A value less than 1 will make the
+    // character stickier while a value greater than 1 will make the character slippery
+    character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * character.groundScalar);
 
-    const offset = Math.max(0.0, deltaVector.length() - 1e-5);
-    deltaVector.normalize().multiplyScalar(offset);
+    // const offset = Math.max(0.0, deltaVector.length() - 1e-4);
+    // deltaVector.normalize().multiplyScalar(offset);
 
     // Adjust the player model
     characterRef.current.position.add(deltaVector);
 
     if (!character.isGrounded) {
+      // We check if the character has collisions while in the air and apply them to its velocity
       deltaVector.normalize();
       character.velocity.addScaledVector(deltaVector, -deltaVector.dot(character.velocity));
     } else {
+      // Set velocity to 0 if we are on the ground otherwise the character will get dragged through the floor
       character.velocity.set(0, 0, 0);
     }
   }, Stages.Update);
