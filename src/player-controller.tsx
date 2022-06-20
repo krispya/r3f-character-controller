@@ -85,6 +85,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
   const [fsm, send] = useMachine(playerControlsMachine);
   const collider = useStore((state) => state.collider);
+  const setPlayer = useStore((state) => state.setPlayer);
 
   // Player controls and consts
   const controls = usePlayerControls();
@@ -99,6 +100,11 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
 
   // Bind move and jump controls
   useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
+
+  // Store the character as player
+  useEffect(() => {
+    if (characterRef.current) setPlayer(characterRef.current);
+  }, []);
 
   // Set math objects based on the player's size. We will use these to calculate intersections later
   useEffect(() => {
@@ -121,9 +127,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     character.velocity.y += character.isGrounded ? 0 : delta * GRAVITY;
     characterRef.current.position.addScaledVector(character.velocity, delta);
 
-    if (isMoving) {
-      send('RUN');
-
+    if (isMoving || isJumping) {
       // Get the angle between the camera and character
       const angle = Math.atan2(
         state.camera.position.x - characterRef.current.position.x,
@@ -131,15 +135,21 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
       );
 
       // Loop over move directions and apply movement to the character
-      for (const direction in move) {
-        if (!move[direction]) continue;
-        temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
-        characterRef.current.position.addScaledVector(temp.vec, character.speed * delta);
+      if (isMoving) {
+        send('RUN');
+        for (const direction in move) {
+          if (!move[direction]) continue;
+          temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
+          characterRef.current.position.addScaledVector(temp.vec, character.speed * delta);
+        }
       }
-    } else if (isJumping) {
-      send('JUMP');
-      if (character.isGrounded) character.velocity.y = character.jumpSpeed;
-    } else {
+
+      if (isJumping) {
+        send('JUMP');
+        if (character.isGrounded) character.velocity.y = character.jumpSpeed;
+      }
+    }
+    {
       send('IDLE');
     }
     // Update the character's matrix for movement now so we can update it again for collision later
@@ -200,8 +210,10 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
     // character stickier while a value greater than 1 will make the character slippery
     character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * character.groundScalar);
 
-    // const offset = Math.max(0.0, deltaVector.length() - 1e-4);
-    // deltaVector.normalize().multiplyScalar(offset);
+    // Discards deltaVector values smaller than our magic number
+    // TODO: Figure out this magic number stuff
+    const offset = Math.max(0.0, deltaVector.length() - 1e-4);
+    deltaVector.normalize().multiplyScalar(offset);
 
     // Adjust the player model
     characterRef.current.position.add(deltaVector);
