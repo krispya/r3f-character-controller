@@ -6,6 +6,7 @@ import { useController } from './controller';
 import { Level } from './level';
 import { PlayerController } from './player-controller';
 import { Player } from './player';
+import { CameraController } from './camera-controller';
 
 export const Stages = {
   Early: -200,
@@ -37,7 +38,8 @@ function Game() {
       <ambientLight intensity={1} />
       <Environment preset="apartment" />
 
-      <OrbitControls />
+      {/* <OrbitControls /> */}
+      <CameraController />
     </>
   );
 }
