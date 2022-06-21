@@ -6,10 +6,9 @@ import { Stages } from './app';
 import * as THREE from 'three';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
-import { useHelper } from '@react-three/drei';
-import { useLineDebug } from './use-line-debug';
+import { useLineDebug } from './debug/use-line-debug';
 import { playerControlsMachine } from './player-machine';
-import { useBoxDebug } from './use-box-debug';
+import { useBoxDebug } from './debug/use-box-debug';
 
 type Controls = {
   move: {

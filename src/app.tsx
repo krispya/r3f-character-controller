@@ -1,12 +1,16 @@
 import './app.css';
-import { Environment, OrbitControls } from '@react-three/drei';
+import { Environment, OrbitControls, useHelper } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useLayoutEffect } from 'react';
+import { Suspense, useLayoutEffect, useRef } from 'react';
 import { useController } from './controller';
-import { Level } from './level';
 import { PlayerController } from './player-controller';
 import { Player } from './player';
 import { CameraController } from './camera-controller';
+import { Fauna } from './level/fauna';
+import { Terrain } from './level/terrain';
+import { Collider } from './collider';
+import Space from './level/space';
+import * as THREE from 'three';
 
 export const Stages = {
   Early: -200,
@@ -27,26 +31,44 @@ function Game() {
     controller.update();
   }, Stages.Early);
 
+  const lightRef = useRef(null!);
+  useHelper(null, THREE.SpotLightHelper);
+
   return (
-    <>
-      <Level />
-      {/* <Level scale={[2, 2, 2]} position={[0.5, 0, 0]} /> */}
+    <Suspense fallback={null}>
+      <Fauna />
+      <Collider>
+        <Terrain />
+      </Collider>
+
       <PlayerController>
         <Player radius={0.5 / 2} length={0.65 / 2} />
       </PlayerController>
 
-      <ambientLight intensity={1} />
-      <Environment preset="apartment" />
+      <Space />
+      <ambientLight intensity={0.3} />
+      <hemisphereLight intensity={0.95} color="#eacb6e" groundColor="red" />
+      <spotLight
+        ref={lightRef}
+        castShadow
+        color="orange"
+        intensity={1000}
+        position={[80, 50, -40]}
+        angle={0.25}
+        penumbra={1}
+        shadow-mapSize={[128, 128]}
+        shadow-bias={0.00005}
+      />
 
       {/* <OrbitControls /> */}
       <CameraController />
-    </>
+    </Suspense>
   );
 }
 
 export default function App() {
   return (
-    <Canvas shadows gl={{ physicallyCorrectLights: true }} camera={{ position: [5, 3, -10], fov: 50 }}>
+    <Canvas shadows gl={{ physicallyCorrectLights: true }}>
       <Game />
     </Canvas>
   );
