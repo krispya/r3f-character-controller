@@ -35,15 +35,17 @@ function Game() {
   useHelper(null, THREE.SpotLightHelper);
 
   return (
-    <Suspense fallback={null}>
-      <Fauna />
-      <Collider>
-        <Terrain />
-      </Collider>
+    <Suspense>
+      <Suspense>
+        <Fauna />
+        <Collider>
+          <Terrain />
+        </Collider>
 
-      <PlayerController>
-        <Player radius={0.5 / 2} length={0.65 / 2} />
-      </PlayerController>
+        <PlayerController>
+          <Player radius={0.5 / 2} length={0.65 / 2} />
+        </PlayerController>
+      </Suspense>
 
       <Space />
       <ambientLight intensity={0.3} />
