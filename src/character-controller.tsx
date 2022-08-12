@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { useMachine } from '@xstate/react';
 import { useStore } from './store';
 import { useLineDebug } from './debug/use-line-debug';
-import { playerControlsMachine } from './player-machine';
+import { characterControlsMachine } from './character-machine';
 import { useBoxDebug } from './debug/use-box-debug';
 
 type Controls = {
@@ -65,7 +65,7 @@ export function usePlayerControls() {
   return controls;
 }
 
-export function PlayerController({ children }: { children: React.ReactNode }) {
+export function CharacterController({ children }: { children: React.ReactNode }) {
   // Refs
   const characterRef = useRef<THREE.Group>(null!);
 
@@ -82,7 +82,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
 
   // Stored states
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
-  const [fsm, send] = useMachine(playerControlsMachine);
+  const [fsm, send] = useMachine(characterControlsMachine);
   const collider = useStore((state) => state.collider);
   const setPlayer = useStore((state) => state.setPlayer);
 

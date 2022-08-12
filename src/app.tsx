@@ -3,7 +3,7 @@ import { Environment, OrbitControls, useHelper } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Suspense, useLayoutEffect, useRef } from 'react';
 import { useController } from './controller';
-import { PlayerController } from './player-controller';
+import { CharacterController } from './character-controller';
 import { Player } from './player';
 import { CameraController } from './camera-controller';
 import { Fauna } from './level/fauna';
@@ -41,9 +41,9 @@ function Game() {
         <Terrain />
       </Collider>
 
-      <PlayerController>
+      <CharacterController>
         <Player radius={0.5 / 2} length={0.65 / 2} />
-      </PlayerController>
+      </CharacterController>
 
       <Space />
       <ambientLight intensity={0.3} />

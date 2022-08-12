@@ -1,6 +1,6 @@
 import { createMachine } from 'xstate';
 
-export const playerControlsMachine = createMachine({
+export const characterControlsMachine = createMachine({
   id: 'player-controls',
   initial: 'idling',
   states: {
