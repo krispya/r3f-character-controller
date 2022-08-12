@@ -1,8 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
-import { Environment, Stars } from '@react-three/drei';
-import { LayerMaterial, Color, Depth } from 'lamina';
-import * as THREE from 'three';
+import { Stars } from '@react-three/drei';
 import { Stages } from '../app';
 
 export default function Space() {
@@ -16,24 +14,6 @@ export default function Space() {
 
   return (
     <>
-      <Environment frames={Infinity} background resolution={256}>
-        <mesh scale={100}>
-          <sphereGeometry args={[1, 64, 64]} />
-          <LayerMaterial side={THREE.BackSide}>
-            <Color color="#312a49" alpha={1} mode="normal" />
-            <Depth
-              ref={depthRef}
-              colorA="hotpink"
-              colorB="#447"
-              alpha={0.8}
-              mode="normal"
-              near={0}
-              far={300}
-              origin={[100, 100, 100]}
-            />
-          </LayerMaterial>
-        </mesh>
-      </Environment>
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
     </>
   );

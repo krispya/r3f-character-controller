@@ -6,9 +6,10 @@ import * as THREE from 'three';
 
 type ColliderProps = {
   children: React.ReactNode;
+  debug?: { collider?: boolean; visualizer?: boolean };
 };
 
-export function Collider({ children }: ColliderProps) {
+export function Collider({ children, debug = { collider: false, visualizer: false } }: ColliderProps) {
   const ref = useRef<THREE.Group>(null!);
   const [collider, setCollider] = useStore((state) => [state.collider, state.setCollider]);
   const [visualizer, setVisualizer] = useState<MeshBVHVisualizer | undefined>(undefined);
@@ -72,8 +73,8 @@ export function Collider({ children }: ColliderProps) {
   return (
     <>
       <group ref={ref}>{children}</group>
-      {collider && <primitive visible={false} object={collider} />}
-      {visualizer && <primitive visible={false} object={visualizer} />}
+      {collider && <primitive visible={debug.collider} object={collider} />}
+      {visualizer && <primitive visible={debug.visualizer} object={visualizer} />}
     </>
   );
 }
