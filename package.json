@@ -16,6 +16,7 @@
     "react-dom": "^18.0.0",
     "three": "^0.141.0",
     "three-mesh-bvh": "^0.5.11",
+    "vite-tsconfig-paths": "^3.5.0",
     "xstate": "^4.32.1",
     "zustand": "^4.0.0-rc.1"
   },
