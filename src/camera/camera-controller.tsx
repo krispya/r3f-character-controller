@@ -1,7 +1,7 @@
 import { OrbitControls } from '@react-three/drei';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Stages } from './app';
-import { useStore } from './store';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Stages } from '../app';
+import { useStore } from 'stores/store';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 
@@ -21,7 +21,7 @@ export function CameraController() {
     const oldCam = camera;
     set(() => ({ camera: camera! }));
     return () => set(() => ({ camera: oldCam }));
-  }, [set]);
+  }, [camera, set]);
 
   useFrame(() => {
     if (!player) return;

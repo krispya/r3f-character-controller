@@ -1,15 +1,15 @@
 import './app.css';
-import { Environment, OrbitControls, useHelper } from '@react-three/drei';
+import { useHelper } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Suspense, useLayoutEffect, useRef } from 'react';
-import { useController } from './controller';
-import { CharacterController } from './character-controller';
-import { Player } from './player';
-import { CameraController } from './camera-controller';
-import { Fauna } from './level/fauna';
-import { Terrain } from './level/terrain';
-import { Collider } from './collider';
-import Space from './level/space';
+import { useController } from 'controls/controller';
+import { CharacterController } from 'character/character-controller';
+import { Player } from 'test-assets/player';
+import { CameraController } from 'camera/camera-controller';
+import { Fauna } from 'test-assets/fauna';
+import { Terrain } from 'test-assets/terrain';
+import { Collider } from 'collider/collider';
+import Space from 'test-assets/space';
 import * as THREE from 'three';
 
 export const Stages = {

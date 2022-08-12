@@ -12,7 +12,7 @@ export function Terrain(props: JSX.IntrinsicElements['group']) {
     for (const material in materials) {
       materials[material].envMapIntensity = 0.3;
     }
-  }, []);
+  }, [materials]);
 
   return (
     <group {...props} dispose={null}>

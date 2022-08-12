@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { useStore } from './store';
+import { useStore } from 'stores/store';
 import { MeshBVH, MeshBVHVisualizer } from 'three-mesh-bvh';
 import * as THREE from 'three';
 

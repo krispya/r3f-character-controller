@@ -6,7 +6,7 @@ interface ControllerState {
   keyboard: KeyboardDevice;
 }
 
-const useStore = create<ControllerState>((set, get) => {
+const useStore = create<ControllerState>(() => {
   const controller = new Controller();
   const keyboard = new KeyboardDevice();
   controller.addDevice(keyboard);

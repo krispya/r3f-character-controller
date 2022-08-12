@@ -1,14 +1,14 @@
 import { VectorControl, BooleanControl, Controller, KeyboardDevice } from '@hmans/controlfreak';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
-import { useController } from './controller';
-import { Stages } from './app';
+import { useController } from 'controls/controller';
+import { Stages } from 'app';
 import * as THREE from 'three';
 import { useMachine } from '@xstate/react';
-import { useStore } from './store';
-import { useLineDebug } from './debug/use-line-debug';
+import { useStore } from 'stores/store';
+import { useLineDebug } from 'debug/use-line-debug';
 import { characterControlsMachine } from './character-machine';
-import { useBoxDebug } from './debug/use-box-debug';
+import { useBoxDebug } from 'debug/use-box-debug';
 
 type Controls = {
   move: {
@@ -82,7 +82,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
 
   // Stored states
   const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
-  const [fsm, send] = useMachine(characterControlsMachine);
+  const [, send] = useMachine(characterControlsMachine);
   const collider = useStore((state) => state.collider);
   const setPlayer = useStore((state) => state.setPlayer);
 
@@ -103,7 +103,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
   // Store the character as player
   useEffect(() => {
     if (characterRef.current) setPlayer(characterRef.current);
-  }, []);
+  }, [setPlayer]);
 
   // Set math objects based on the player's size. We will use these to calculate intersections later
   useEffect(() => {
@@ -115,7 +115,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
       bounding.length = vec.y - bounding.radius * 2;
       bounding.segment.end.copy(new THREE.Vector3(0, -bounding.length, 0));
     }
-  }, []);
+  }, [bounding, temp.box]);
 
   // Player movement loop
   useFrame((state, delta) => {
@@ -227,7 +227,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
     }
   }, Stages.Update);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     if (characterRef.current.position.y < -10) {
       characterRef.current.position.set(0, 0, 0);
       character.velocity.set(0, 0, 0);
