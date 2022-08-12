@@ -230,7 +230,7 @@ export function PlayerController({ children }: { children: React.ReactNode }) {
   useFrame((state, delta) => {
     if (characterRef.current.position.y < -10) {
       characterRef.current.position.set(0, 0, 0);
-      character.velocity.y = 0;
+      character.velocity.set(0, 0, 0);
     }
   });
 
