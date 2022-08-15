@@ -122,8 +122,6 @@ export function CharacterController({ children }: { children: React.ReactNode })
 
       bounding.segment.end.copy(new THREE.Vector3(0, -offset, 0));
       bounding.segment.start.copy(new THREE.Vector3(0, offset, 0));
-
-      console.log(size, bounding);
     },
     [bounding, temp.box],
   );
