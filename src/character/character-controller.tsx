@@ -8,6 +8,7 @@ import { useStore } from 'stores/store';
 import { useLineDebug } from 'debug/use-line-debug';
 import { characterControlsMachine } from './character-machine';
 import { useBoxDebug } from 'debug/use-box-debug';
+import { useCapsuleDebug } from 'debug/use-capsule-debug';
 
 type Controls = {
   move: {
@@ -26,6 +27,12 @@ type DirectionVec = {
   backward: [number, number, number];
   left: [number, number, number];
   right: [number, number, number];
+};
+
+export type Bounding = {
+  radius: number;
+  length: number;
+  segment: THREE.Line3;
 };
 
 const GRAVITY = -9.81;
@@ -94,7 +101,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
     isGrounded: false,
     velocity: new THREE.Vector3(),
   }));
-  const [bounding] = useState(() => ({ radius: 0, length: 0, segment: new THREE.Line3() }));
+  const [bounding] = useState<Bounding>(() => ({ radius: 0, length: 0, segment: new THREE.Line3() }));
 
   // Bind move and jump controls
   useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
@@ -108,11 +115,15 @@ export function CharacterController({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (characterRef.current) {
       const vec = new THREE.Vector3();
-      temp.box.setFromObject(characterRef.current);
+      temp.box.setFromObject(characterRef.current, true);
       temp.box.getSize(vec);
       bounding.radius = vec.x / 2;
       bounding.length = vec.y - bounding.radius * 2;
-      bounding.segment.end.copy(new THREE.Vector3(0, -bounding.length, 0));
+
+      const offset = bounding.length - bounding.radius;
+
+      bounding.segment.end.copy(new THREE.Vector3(0, -offset, 0));
+      bounding.segment.start.copy(new THREE.Vector3(0, offset, 0));
     }
   }, [bounding, temp.box]);
 
@@ -163,12 +174,8 @@ export function CharacterController({ children }: { children: React.ReactNode })
     temp.segment.end.applyMatrix4(characterRef.current.matrixWorld);
 
     // Build a bounding box that represents the collision area
-    // The setFromObject and manual box3 build method should yield the same result
-    // I'm not sure which is faster, but I was doing this for debug
     temp.box.makeEmpty();
-    // temp.box.setFromObject(characterRef.current);
-    temp.box.expandByPoint(temp.segment.start);
-    temp.box.expandByPoint(temp.segment.end);
+    temp.box.setFromPoints([temp.segment.start, temp.segment.end]);
     temp.box.min.addScalar(-bounding.radius);
     temp.box.max.addScalar(bounding.radius);
 
@@ -197,7 +204,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
     // Get the adjusted position of the capsule collider in world space after checking
     // triangle collisions and moving it. We use temp.segment.start as the origin
     const newPosition = temp.vec;
-    newPosition.copy(temp.segment.start);
+    temp.segment.getCenter(newPosition);
 
     // Check how much the collider was moved
     const deltaVector = temp.vec2;
@@ -236,6 +243,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
   // Box3 and Line3 visualizers for debugging
   useLineDebug(temp.segment);
   useBoxDebug(temp.box);
+  useCapsuleDebug(bounding, temp.box);
 
   return <group ref={characterRef}>{children}</group>;
 }
