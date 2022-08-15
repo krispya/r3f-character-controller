@@ -20,7 +20,7 @@ export function useLineDebug(line3: THREE.Line3 | null = null) {
     return () => {
       scene.remove(line);
     };
-  }, []);
+  }, [line3, scene]);
 
   useUpdate(() => {
     if (lineRef.current && line3) {
