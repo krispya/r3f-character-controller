@@ -10,7 +10,7 @@
   "dependencies": {
     "@hmans/controlfreak": "^0.2.0",
     "@react-three/drei": "^9.13.0",
-    "@react-three/fiber": "https://pkg.csb.dev/pmndrs/react-three-fiber/commit/2e5df681/@react-three/fiber",
+    "@react-three/fiber": "^9.0.0-alpha.1",
     "@xstate/react": "^3.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
