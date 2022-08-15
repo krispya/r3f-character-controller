@@ -1,6 +1,6 @@
 import { VectorControl, BooleanControl, Controller, KeyboardDevice } from '@hmans/controlfreak';
 import { Stages, useUpdate } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useController } from 'controls/controller';
 import * as THREE from 'three';
 import { useMachine } from '@xstate/react';
@@ -9,6 +9,7 @@ import { useLineDebug } from 'debug/use-line-debug';
 import { characterControlsMachine } from './character-machine';
 import { useBoxDebug } from 'debug/use-box-debug';
 import { useCapsuleDebug } from 'debug/use-capsule-debug';
+import { MeasureHandler, useMeasure } from 'hooks/use-measure';
 
 type Controls = {
   move: {
@@ -111,21 +112,23 @@ export function CharacterController({ children }: { children: React.ReactNode })
     if (characterRef.current) setPlayer(characterRef.current);
   }, [setPlayer]);
 
-  // Set math objects based on the player's size. We will use these to calculate intersections later
-  useEffect(() => {
-    if (characterRef.current) {
-      const vec = new THREE.Vector3();
-      temp.box.setFromObject(characterRef.current, true);
-      temp.box.getSize(vec);
-      bounding.radius = vec.x / 2;
-      bounding.length = vec.y - bounding.radius * 2;
+  const handleMeasure = useCallback<MeasureHandler>(
+    (size, box) => {
+      temp.box.copy(box);
+      bounding.radius = size.x / 2;
+      bounding.length = size.y - bounding.radius * 2;
 
-      const offset = bounding.length - bounding.radius;
+      const offset = bounding.length - bounding.length / 2;
 
       bounding.segment.end.copy(new THREE.Vector3(0, -offset, 0));
       bounding.segment.start.copy(new THREE.Vector3(0, offset, 0));
-    }
-  }, [bounding, temp.box]);
+
+      console.log(size, bounding);
+    },
+    [bounding, temp.box],
+  );
+
+  useMeasure(characterRef, handleMeasure, { precise: true });
 
   // Player movement loop
   useUpdate((state, delta) => {
