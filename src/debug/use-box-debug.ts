@@ -1,7 +1,6 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useUpdate, useThree, Stages } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { Stages } from '../app';
 
 export function useBoxDebug(box3: THREE.Box3 | null = null) {
   const boxRef = useRef<THREE.LineSegments>(null!);
@@ -26,9 +25,9 @@ export function useBoxDebug(box3: THREE.Box3 | null = null) {
     return () => {
       scene.remove(line);
     };
-  }, []);
+  }, [box3, scene]);
 
-  useFrame(() => {
+  useUpdate(() => {
     if (!box3) return;
 
     const min = box3.min;

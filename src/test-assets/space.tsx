@@ -1,12 +1,11 @@
-import { useFrame } from '@react-three/fiber';
+import { Stages, useUpdate } from '@react-three/fiber';
 import { useRef } from 'react';
 import { Stars } from '@react-three/drei';
-import { Stages } from '../app';
 
 export default function Space() {
   const depthRef = useRef<any>(null!);
 
-  useFrame(({ clock }) => {
+  useUpdate(({ clock }) => {
     if (depthRef.current) {
       depthRef.current.alpha = Math.sin(clock.elapsedTime * 0.1) * 0.4 + 0.4;
     }

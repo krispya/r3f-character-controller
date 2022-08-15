@@ -1,7 +1,6 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useUpdate, useThree, Stages } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { Stages } from '../app';
 
 export function useLineDebug(line3: THREE.Line3 | null = null) {
   const lineRef = useRef<THREE.Line>(null!);
@@ -23,7 +22,7 @@ export function useLineDebug(line3: THREE.Line3 | null = null) {
     };
   }, []);
 
-  useFrame(() => {
+  useUpdate(() => {
     if (lineRef.current && line3) {
       const points = [];
       points.push(line3.start);
