@@ -1,4 +1,3 @@
-import { useHelper } from '@react-three/drei';
 import { useRef } from 'react';
 import * as THREE from 'three';
 
@@ -9,8 +8,6 @@ type PlayerProps = {
 
 export function Player({ radius = 0.5, length = 0.65 }: PlayerProps) {
   const playerRef = useRef<THREE.Mesh>(null!);
-
-  useHelper(playerRef, THREE.BoxHelper, 'purple');
 
   return (
     <>
