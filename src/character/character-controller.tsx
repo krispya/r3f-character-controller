@@ -98,7 +98,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
   const [character] = useState(() => ({
     speed: 6,
     jumpSpeed: 6,
-    groundScalar: 0.95,
+    groundScalar: 0.75,
     isGrounded: false,
     velocity: new THREE.Vector3(),
   }));
@@ -203,7 +203,7 @@ export function CharacterController({ children }: { children: React.ReactNode })
     });
 
     // Get the adjusted position of the capsule collider in world space after checking
-    // triangle collisions and moving it. We use temp.segment.start as the origin
+    // triangle collisions and moving it.
     const newPosition = temp.vec;
     temp.segment.getCenter(newPosition);
 
@@ -215,11 +215,13 @@ export function CharacterController({ children }: { children: React.ReactNode })
     // The groundScalar helps us make the character more sticky or slippery. A value less than 1 will make the
     // character stickier while a value greater than 1 will make the character slippery
     character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * character.groundScalar);
+    console.log(deltaVector.y);
 
     // Discards deltaVector values smaller than our magic number
     // TODO: Figure out this magic number stuff
-    const offset = Math.max(0.0, deltaVector.length() - 1e-4);
-    deltaVector.normalize().multiplyScalar(offset);
+    const offset = Math.max(0.0, deltaVector.length() - 1e-7);
+    if (offset === 0) deltaVector.normalize().multiplyScalar(offset);
+    console.log('final: ', deltaVector.y);
 
     // Adjust the player model
     characterRef.current.position.add(deltaVector);
