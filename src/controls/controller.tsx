@@ -110,5 +110,15 @@ export function Controller({
 }
 
 export function useController() {
-  return useStore((state) => state.controller).controls;
+  const controller = useStore((state) => state.controller);
+  const controls: { [key: string]: any } = {};
+
+  // This is a hack to demonstrate a cleaner API
+  useUpdate(() => {
+    for (const [key, value] of Object.entries(controller.controls)) {
+      controls[key] = value.value;
+    }
+  }, Stages.Early);
+
+  return controls;
 }

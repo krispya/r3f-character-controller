@@ -84,12 +84,10 @@ export function CharacterController({ children }: CharacterControllerProps) {
 
   // Player movement loop
   useUpdate((state, delta) => {
-    console.log(controls);
     if (!controls) return;
-    const { move, jump: isJumping } = controls;
 
-    // const isMoving = move.forward || move.backward || move.left || move.right;
-    const isMoving = false;
+    const { move, jump: isJumping } = controls;
+    const isMoving = move.x !== 0 || move.y !== 0;
 
     // Apply gravity and velocities to the character
     character.velocity.y += character.isGrounded ? 0 : delta * GRAVITY;
@@ -102,14 +100,14 @@ export function CharacterController({ children }: CharacterControllerProps) {
         state.camera.position.z - characterRef.current.position.z,
       );
 
-      // Loop over move directions and apply movement to the character
+      // TODO: Very broken. Actually this whole method is bad. Just redo it.
       if (isMoving) {
         send('RUN');
-        for (const direction in move) {
-          if (!move[direction]) continue;
-          temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
-          characterRef.current.position.addScaledVector(temp.vec, character.speed * delta);
-        }
+        // for (const direction in move) {
+        //   if (!move[direction]) continue;
+        //   temp.vec.set(...directionVec[direction]).applyAxisAngle(upVec, angle);
+        //   characterRef.current.position.addScaledVector(temp.vec, character.speed * delta);
+        // }
       }
 
       if (isJumping) {
