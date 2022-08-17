@@ -7,7 +7,7 @@ import {
   VectorControl,
 } from '@hmans/controlfreak';
 import { Stages, useUpdate } from '@react-three/fiber';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import create from 'zustand';
 
 type ControllerState = {
@@ -111,7 +111,7 @@ export function Controller({
 
 export function useController() {
   const controller = useStore((state) => state.controller);
-  const controls: { [key: string]: any } = {};
+  const [controls] = useState<{ [key: string]: any }>({});
 
   // This is a hack to demonstrate a cleaner API
   useUpdate(() => {
