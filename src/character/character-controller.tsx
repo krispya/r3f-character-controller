@@ -1,4 +1,3 @@
-import { VectorControl, BooleanControl, Controller, KeyboardDevice } from '@hmans/controlfreak';
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useController } from 'controls/controller';
@@ -10,17 +9,6 @@ import { characterControlsMachine } from './character-machine';
 import { useBoxDebug } from 'debug/use-box-debug';
 import { useCapsuleDebug } from 'debug/use-capsule-debug';
 import { MeasureHandler, useMeasure } from 'hooks/use-measure';
-
-type Controls = {
-  move: {
-    [key: string]: boolean;
-    forward: boolean;
-    backward: boolean;
-    left: boolean;
-    right: boolean;
-  };
-  jump: boolean;
-};
 
 type DirectionVec = {
   [key: string]: [number, number, number];
@@ -36,43 +24,13 @@ export type Bounding = {
   segment: THREE.Line3;
 };
 
-const GRAVITY = -9.81;
-
-const bindPlayerControls = (controller: Controller, keyboard: KeyboardDevice) => {
-  controller.addControl('move', VectorControl).addStep(keyboard.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD'));
-  controller.addControl('jump', BooleanControl).addStep(keyboard.whenKeyPressed('Space'));
-
-  return () => {
-    controller.removeControl('move');
-    controller.removeControl('jump');
-  };
+export type CharacterControllerProps = {
+  children: React.ReactNode;
 };
 
-export function usePlayerControls() {
-  const controls = useRef<Controls>({
-    move: {
-      forward: false,
-      backward: false,
-      left: false,
-      right: false,
-    },
-    jump: false,
-  });
-  const controller = useController();
+const GRAVITY = -9.81;
 
-  useUpdate(() => {
-    const forward = controller.controls.move?.value.y > 0 ?? false;
-    const backward = controller.controls.move?.value.y < 0 ?? false;
-    const left = controller.controls.move?.value.x < 0 ?? false;
-    const right = controller.controls.move?.value.x > 0 ?? false;
-    const jump = controller.controls.jump?.value ?? false;
-    controls.current = { move: { forward, backward, left, right }, jump };
-  }, Stages.Early);
-
-  return controls;
-}
-
-export function CharacterController({ children }: { children: React.ReactNode }) {
+export function CharacterController({ children }: CharacterControllerProps) {
   // Refs
   const characterRef = useRef<THREE.Group>(null!);
 
@@ -88,13 +46,12 @@ export function CharacterController({ children }: { children: React.ReactNode })
   const [upVec] = useState(() => new THREE.Vector3(0, 1, 0));
 
   // Stored states
-  const [controller, keyboard] = useController((state) => [state.controller, state.keyboard]);
   const [, send] = useMachine(characterControlsMachine);
   const collider = useStore((state) => state.collider);
   const setPlayer = useStore((state) => state.setPlayer);
 
   // Player controls and consts
-  const controls = usePlayerControls();
+  const controls = useController();
   const [character] = useState(() => ({
     speed: 6,
     jumpSpeed: 6,
@@ -103,9 +60,6 @@ export function CharacterController({ children }: { children: React.ReactNode })
     velocity: new THREE.Vector3(),
   }));
   const [bounding] = useState<Bounding>(() => ({ radius: 0, length: 0, segment: new THREE.Line3() }));
-
-  // Bind move and jump controls
-  useEffect(() => bindPlayerControls(controller, keyboard), [controller, keyboard]);
 
   // Store the character as player
   useEffect(() => {
@@ -130,8 +84,12 @@ export function CharacterController({ children }: { children: React.ReactNode })
 
   // Player movement loop
   useUpdate((state, delta) => {
-    const { move, jump: isJumping } = controls.current;
-    const isMoving = move.forward || move.backward || move.left || move.right;
+    console.log(controls);
+    if (!controls) return;
+    const { move, jump: isJumping } = controls;
+
+    // const isMoving = move.forward || move.backward || move.left || move.right;
+    const isMoving = false;
 
     // Apply gravity and velocities to the character
     character.velocity.y += character.isGrounded ? 0 : delta * GRAVITY;
@@ -215,13 +173,13 @@ export function CharacterController({ children }: { children: React.ReactNode })
     // The groundScalar helps us make the character more sticky or slippery. A value less than 1 will make the
     // character stickier while a value greater than 1 will make the character slippery
     character.isGrounded = deltaVector.y > Math.abs(delta * character.velocity.y * character.groundScalar);
-    console.log(deltaVector.y);
+    // console.log(deltaVector.y);
 
     // Discards deltaVector values smaller than our magic number
     // TODO: Figure out this magic number stuff
     const offset = Math.max(0.0, deltaVector.length() - 1e-7);
     if (offset === 0) deltaVector.normalize().multiplyScalar(offset);
-    console.log('final: ', deltaVector.y);
+    // console.log('final: ', deltaVector.y);
 
     // Adjust the player model
     characterRef.current.position.add(deltaVector);

@@ -1,7 +1,7 @@
 import './app.css';
-import { Canvas, Stages, useUpdate } from '@react-three/fiber';
-import { Suspense, useLayoutEffect } from 'react';
-import { useController } from 'controls/controller';
+import { Canvas } from '@react-three/fiber';
+import { Suspense } from 'react';
+import { Controller } from 'controls/controller';
 import { CharacterController } from 'character/character-controller';
 import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
@@ -11,20 +11,16 @@ import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 
 function Game() {
-  const controller = useController();
-
-  // Start our controller
-  useLayoutEffect(() => {
-    controller.start();
-  }, [controller]);
-
-  // Update the controller on an early loop
-  useUpdate(() => {
-    controller.update();
-  }, Stages.Early);
-
   return (
     <Suspense fallback={null}>
+      <Controller
+        devices="keyboard"
+        actions={({ keyboard }) => ({
+          move: { type: 'vector', steps: [keyboard?.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD')] },
+          jump: { type: 'boolean', steps: [keyboard?.whenKeyPressed('Space')] },
+        })}
+      />
+
       <Fauna />
       <Collider>
         <Terrain />
