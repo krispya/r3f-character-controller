@@ -12,7 +12,7 @@ import Space from 'test-assets/space';
 
 function Game() {
   return (
-    <Suspense fallback={null}>
+    <Suspense>
       <Controller
         devices="keyboard"
         actions={({ keyboard }) => ({

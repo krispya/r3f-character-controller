@@ -1,5 +1,5 @@
 import { useThree, useUpdate } from '@react-three/fiber';
-import { Bounding } from 'character/character-controller';
+import { Bounding } from 'character/hooks/use-bounding-volume';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
