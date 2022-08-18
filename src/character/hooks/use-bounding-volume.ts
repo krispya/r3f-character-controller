@@ -16,7 +16,7 @@ export function useBoundingVolume(ref: React.MutableRefObject<THREE.Object3D>) {
       bounding.radius = size.x / 2;
       bounding.length = size.y - bounding.radius * 2;
 
-      const offset = bounding.length - bounding.length / 2;
+      const offset = bounding.length / 2;
 
       bounding.line.end.copy(new THREE.Vector3(0, -offset, 0));
       bounding.line.start.copy(new THREE.Vector3(0, offset, 0));
