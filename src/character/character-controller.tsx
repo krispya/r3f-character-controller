@@ -1,5 +1,5 @@
 import { useUpdate } from '@react-three/fiber';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useStore } from 'stores/store';
 import { useLineDebug } from 'debug/use-line-debug';
@@ -26,6 +26,7 @@ export function CharacterController({ children }: CharacterControllerProps) {
   const [store] = useState(() => ({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
+    obj: new THREE.Object3D(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
     matrix: new THREE.Matrix4(),
@@ -38,24 +39,45 @@ export function CharacterController({ children }: CharacterControllerProps) {
   // Build bounding volume. Right now it can only be a capsule.
   const bounding = useBoundingVolume(characterRef);
 
-  const moveCharacter = useCallback((velocity: THREE.Vector3, delta: number) => {
-    characterRef.current.position.addScaledVector(velocity, delta);
-  }, []);
+  const moveCharacter = useCallback(
+    (velocity: THREE.Vector3, delta: number) => {
+      store.obj.position.copy(characterRef.current.position);
+      store.obj.position.addScaledVector(velocity, delta);
+      store.obj.updateMatrixWorld();
+    },
+    [store.obj],
+  );
 
-  // Apply gravity.
-  useUpdate(() => {
-    modifiers.push(new THREE.Vector3(0, GRAVITY, 0));
+  // Add gravity.
+  useLayoutEffect(() => {
+    const modifier = new THREE.Vector3(0, GRAVITY, 0);
+    modifiers.push(modifier);
+    return () => {
+      const index = modifiers.indexOf(modifier);
+      if (index !== -1) modifiers.splice(index, 1);
+    };
+  }, [modifiers]);
+
+  // Character movement engine.
+  useUpdate((state, delta) => {
+    store.vec.set(0, 0, 0);
+
+    for (const modifier of modifiers) {
+      store.vec.add(modifier);
+    }
+
+    moveCharacter(store.vec, delta);
   });
 
   // Character collision engine.
   useUpdate(() => {
     if (!collider?.geometry?.boundsTree) return;
-    const { box, line, vec, vec2 } = store;
+    const { box, line, vec, vec2, obj } = store;
 
     // Build a world space bounding volume.
     line.copy(bounding.line);
-    line.start.applyMatrix4(characterRef.current.matrixWorld);
-    line.end.applyMatrix4(characterRef.current.matrixWorld);
+    line.start.applyMatrix4(obj.matrixWorld);
+    line.end.applyMatrix4(obj.matrixWorld);
     box.makeEmpty();
     box.setFromPoints([line.start, line.end]);
     box.min.addScalar(-bounding.radius);
@@ -87,19 +109,7 @@ export function CharacterController({ children }: CharacterControllerProps) {
     deltaVector.subVectors(newPosition, characterRef.current.position);
 
     characterRef.current.position.add(deltaVector);
-  });
-
-  // Character movement engine.
-  useUpdate((state, delta) => {
-    store.vec.set(0, 0, 0);
-
-    for (const modifier of modifiers) {
-      store.vec.add(modifier);
-    }
-
-    moveCharacter(store.vec, delta);
-    // Reset modifiers
-    modifiers.length = 0;
+    box.setFromObject(characterRef.current);
   });
 
   // Reset if we fall off the level.
@@ -115,5 +125,9 @@ export function CharacterController({ children }: CharacterControllerProps) {
   useBoxDebug(store.box);
   useCapsuleDebug(bounding, store.box);
 
-  return <group ref={characterRef}>{children}</group>;
+  return (
+    <group position={[0, 2, 0]} ref={characterRef}>
+      {children}
+    </group>
+  );
 }
