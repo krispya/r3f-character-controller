@@ -1,4 +1,4 @@
-import { useUpdate, Vector3 } from '@react-three/fiber';
+import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCollider } from 'collider/stores/collider-store';
@@ -117,14 +117,7 @@ export function CharacterController({
   // Finally, sync mesh so movement is visible.
   useUpdate(() => {
     syncMeshToBoundingVolume();
-  });
-
-  // Reset if we fall off the level.
-  useUpdate(() => {
-    if (character.position.y < -10) {
-      character.position.set(0, 0, 0);
-    }
-  });
+  }, Stages.Late);
 
   // Debugging visualizations.
   // We need to compute the bounding volume twice in order to visualize its change.
