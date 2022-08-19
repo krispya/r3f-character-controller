@@ -12,11 +12,12 @@ type Modifier = THREE.Vector3;
 export type CharacterControllerProps = {
   children: React.ReactNode;
   debug?: boolean;
+  gravity?: number;
 };
 
 const GRAVITY = -9.81;
 
-export function CharacterController({ children, debug = false }: CharacterControllerProps) {
+export function CharacterController({ children, debug = false, gravity = GRAVITY }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
 
   const [store] = useState(() => ({
@@ -27,7 +28,16 @@ export function CharacterController({ children, debug = false }: CharacterContro
     line: new THREE.Line3(),
     matrix: new THREE.Matrix4(),
   }));
+
   const [modifiers] = useState<Modifier[]>([]);
+  const addModifier = useCallback((modifier: Modifier) => modifiers.push(modifier), [modifiers]);
+  const removeModifier = useCallback(
+    (modifier: Modifier) => {
+      const index = modifiers.indexOf(modifier);
+      if (index !== -1) modifiers.splice(index, 1);
+    },
+    [modifiers],
+  );
 
   // Get world collider BVH.
   const collider = useStore((state) => state.collider);
@@ -49,13 +59,10 @@ export function CharacterController({ children, debug = false }: CharacterContro
 
   // Add gravity.
   useLayoutEffect(() => {
-    const modifier = new THREE.Vector3(0, GRAVITY, 0);
-    modifiers.push(modifier);
-    return () => {
-      const index = modifiers.indexOf(modifier);
-      if (index !== -1) modifiers.splice(index, 1);
-    };
-  }, [modifiers]);
+    const modifier = new THREE.Vector3(0, gravity, 0);
+    addModifier(modifier);
+    return () => removeModifier(modifier);
+  }, [addModifier, gravity, modifiers, removeModifier]);
 
   // Apply forces.
   useUpdate((state, delta) => {
@@ -118,7 +125,8 @@ export function CharacterController({ children, debug = false }: CharacterContro
     }
   });
 
-  // Debugging visualizations
+  // Debugging visualizations.
+  // We need to compute the bounding volume twice in order to visualize its change.
   useUpdate(() => {
     if (debug) {
       bounding.updateMatrixWorld();
