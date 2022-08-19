@@ -7,8 +7,7 @@ import { useBoxDebug } from 'debug/use-box-debug';
 import { useVolumeDebug } from 'debug/use-volume-debug';
 import { useBoundingVolume } from './hooks/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
-
-type Modifier = THREE.Vector3;
+import { useModifiers } from './hooks/use-modifiers';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -37,15 +36,8 @@ export function CharacterController({
     matrix: new THREE.Matrix4(),
   }));
 
-  const [modifiers] = useState<Modifier[]>([]);
-  const addModifier = useCallback((modifier: Modifier) => modifiers.push(modifier), [modifiers]);
-  const removeModifier = useCallback(
-    (modifier: Modifier) => {
-      const index = modifiers.indexOf(modifier);
-      if (index !== -1) modifiers.splice(index, 1);
-    },
-    [modifiers],
-  );
+  // Set up modifiers.
+  const { modifiers, addModifier, removeModifier } = useModifiers();
 
   // Get world collider BVH.
   const collider = useCollider((state) => state.collider);
