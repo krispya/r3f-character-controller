@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { useStore } from 'stores/store';
+import { useCollider } from 'collider/stores/collider-store';
 import { MeshBVH, MeshBVHVisualizer } from 'three-mesh-bvh';
 import * as THREE from 'three';
 
@@ -11,7 +11,7 @@ type ColliderProps = {
 
 export function Collider({ children, debug = { collider: false, visualizer: false } }: ColliderProps) {
   const ref = useRef<THREE.Group>(null!);
-  const [collider, setCollider] = useStore((state) => [state.collider, state.setCollider]);
+  const [collider, setCollider] = useCollider((state) => [state.collider, state.setCollider]);
   const [visualizer, setVisualizer] = useState<MeshBVHVisualizer | undefined>(undefined);
   const init = useRef(true);
 

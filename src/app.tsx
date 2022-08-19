@@ -2,13 +2,13 @@ import './app.css';
 import { Canvas } from '@react-three/fiber';
 import { Suspense } from 'react';
 import { Controller } from 'controls/controller';
-import { CharacterController } from 'character/character-controller';
 import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
 import { Terrain } from 'test-assets/terrain';
 import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
+import { PlayerController } from 'player/player-controller';
 
 function Game() {
   return (
@@ -26,9 +26,9 @@ function Game() {
         <Terrain />
       </Collider>
 
-      <CharacterController debug>
+      <PlayerController position={[0, 5, 0]} debug>
         <Player radius={0.5 / 2} length={0.65 / 2} />
-      </CharacterController>
+      </PlayerController>
 
       <Space />
       <ambientLight intensity={0.3} />
@@ -44,7 +44,6 @@ function Game() {
         shadow-bias={0.00005}
       />
 
-      {/* <OrbitControls /> */}
       <CameraController />
     </Suspense>
   );
