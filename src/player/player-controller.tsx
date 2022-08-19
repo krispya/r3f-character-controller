@@ -14,7 +14,7 @@ export function PlayerController({ children, ...rest }: PlayerControllerProps) {
 
   // Reset if we fall off the level.
   useUpdate(() => {
-    if (character.position.y < -10) {
+    if (character && character.position.y < -10) {
       character.position.set(0, 0, 0);
     }
   });

@@ -3,7 +3,7 @@ import create from 'zustand';
 
 interface CameraState {
   target: THREE.Object3D | null;
-  setTarget: (target: THREE.Object3D) => void;
+  setTarget: (target: THREE.Object3D | null) => void;
 }
 
 export const useCameraController = create<CameraState>((set) => ({

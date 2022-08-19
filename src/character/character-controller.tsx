@@ -48,8 +48,8 @@ export function CharacterController({
 
   const moveCharacter = useCallback(
     (velocity: THREE.Vector3, delta: number) => {
-      character.position.addScaledVector(velocity, delta);
-      character.updateMatrixWorld();
+      character?.position.addScaledVector(velocity, delta);
+      character?.updateMatrixWorld();
     },
     [character],
   );
@@ -78,7 +78,7 @@ export function CharacterController({
 
   // Detect collisions and apply position displacements.
   useUpdate(() => {
-    if (!collider?.geometry?.boundsTree) return;
+    if (!collider?.geometry?.boundsTree || !character) return;
     const { line, vec, vec2, box } = store;
     const { boundingCapsule: capsule, boundingBox } = character;
 
@@ -123,13 +123,13 @@ export function CharacterController({
   // We need to compute the bounding volume twice in order to visualize its change.
   useUpdate(() => {
     if (debug) {
-      character.updateMatrixWorld();
-      character.computeBoundingVolume();
+      character?.updateMatrixWorld();
+      character?.computeBoundingVolume();
     }
   });
 
   useLineDebug(debug ? store.line : null);
-  useBoxDebug(debug ? character.boundingBox : null);
+  useBoxDebug(debug ? character?.boundingBox : null);
   useVolumeDebug(debug ? bounding : null);
 
   return (

@@ -2,11 +2,11 @@ import { BoundingVolume } from 'character/hooks/use-bounding-volume';
 import create from 'zustand';
 
 type CharacterState = {
-  character: BoundingVolume;
+  character: BoundingVolume | null;
   setCharacter: (character: BoundingVolume) => void;
 };
 
 export const useCharacterController = create<CharacterState>((set) => ({
-  character: new BoundingVolume(),
+  character: null,
   setCharacter: (character) => set({ character }),
 }));
