@@ -26,7 +26,7 @@ function Game() {
         <Terrain />
       </Collider>
 
-      <CharacterController>
+      <CharacterController debug>
         <Player radius={0.5 / 2} length={0.65 / 2} />
       </CharacterController>
 

@@ -7,7 +7,7 @@ import { useStore } from 'stores/store';
 import { useLineDebug } from 'debug/use-line-debug';
 import { characterControlsMachine } from './character-machine';
 import { useBoxDebug } from 'debug/use-box-debug';
-import { useCapsuleDebug } from 'debug/use-capsule-debug';
+import { useVolumeDebug } from 'debug/use-volume-debug';
 import { MeasureHandler, useMeasure } from 'hooks/use-measure';
 
 type DirectionVec = {
@@ -202,7 +202,7 @@ export function CharacterController({ children }: CharacterControllerProps) {
   // Box3 and Line3 visualizers for debugging
   useLineDebug(temp.segment);
   useBoxDebug(temp.box);
-  useCapsuleDebug(bounding, temp.box);
+  useVolumeDebug(bounding, temp.box);
 
   return <group ref={characterRef}>{children}</group>;
 }
