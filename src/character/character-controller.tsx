@@ -60,6 +60,8 @@ export function CharacterController({
     meshRef.current.position.copy(bounding.position);
   };
 
+  // Applies forces to the character, then checks for collision.
+  // If one is detected then the character is moved to no longer collide.
   const step = useCallback(
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
@@ -102,7 +104,6 @@ export function CharacterController({
       const newPosition = vec;
       const deltaVector = vec2;
       // Bounding volume origin is calculated. This might lose percision.
-      // We can determine how much the character has moved by looking at the origin point.
       line.getCenter(newPosition);
       deltaVector.subVectors(newPosition, character.position);
       character.position.add(deltaVector);
