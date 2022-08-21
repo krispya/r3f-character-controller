@@ -14,17 +14,21 @@ export type CharacterControllerProps = {
   debug?: boolean;
   gravity?: number;
   position?: Vector3;
+  iterations?: number;
 };
 
 const GRAVITY = -9.81;
 const FIXED_STEP = 1 / 60;
-const PHYSICS_STEPS = 3;
+// For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
+// This isn't affected by the length of the character's body. I'll automate this once I do more testing.
+const ITERATIONS = 5;
 
 export function CharacterController({
   children,
   debug = false,
   gravity = GRAVITY,
   position,
+  iterations = ITERATIONS,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -123,8 +127,8 @@ export function CharacterController({
 
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {
-    for (let i = 0; i < PHYSICS_STEPS; i++) {
-      step(delta / PHYSICS_STEPS);
+    for (let i = 0; i < iterations; i++) {
+      step(delta / iterations);
     }
   }, Stages.Fixed);
 
