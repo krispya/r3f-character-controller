@@ -32,10 +32,8 @@ export function CharacterController({
   const [store] = useState(() => ({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
-    obj: new THREE.Object3D(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
-    matrix: new THREE.Matrix4(),
   }));
 
   // Set up modifiers.
@@ -94,7 +92,7 @@ export function CharacterController({
           if (distance < capsule.radius) {
             const depth = capsule.radius - distance;
             const direction = capsulePoint.sub(triPoint).normalize();
-            // Move the line segment so there is no longer an intersection with the character's box.
+            // Move the line segment so there is no longer an intersection.
             line.start.addScaledVector(direction, depth);
             line.end.addScaledVector(direction, depth);
           }
