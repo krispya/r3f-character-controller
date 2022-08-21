@@ -17,6 +17,8 @@ export type CharacterControllerProps = {
 };
 
 const GRAVITY = -9.81;
+const FIXED_STEP = 1 / 60;
+const PHYSICS_STEPS = 3;
 
 export function CharacterController({
   children,
@@ -58,6 +60,61 @@ export function CharacterController({
     meshRef.current.position.copy(bounding.position);
   };
 
+  const step = useCallback(
+    (delta: number) => {
+      if (!collider?.geometry.boundsTree || !character) return;
+
+      const { line, vec, vec2, box } = store;
+      const { boundingCapsule: capsule, boundingBox } = character;
+
+      vec.set(0, 0, 0);
+
+      // Appply forces.
+      for (const modifier of modifiers) {
+        vec.add(modifier);
+      }
+
+      moveCharacter(vec, delta);
+
+      // Update bounding volume.
+      character.computeBoundingVolume();
+      line.copy(capsule.line);
+      box.copy(boundingBox);
+
+      // Check for collisions.
+      collider.geometry.boundsTree.shapecast({
+        intersectsBounds: (box) => box.intersectsBox(box),
+        intersectsTriangle: (tri) => {
+          const triPoint = vec;
+          const capsulePoint = vec2;
+          const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
+          // If the distance is less than the radius of the character, we have a collision.
+          if (distance < capsule.radius) {
+            const depth = capsule.radius - distance;
+            const direction = capsulePoint.sub(triPoint).normalize();
+            // Move the line segment so there is no longer an intersection with the character's box.
+            line.start.addScaledVector(direction, depth);
+            line.end.addScaledVector(direction, depth);
+          }
+        },
+      });
+
+      const newPosition = vec;
+      const deltaVector = vec2;
+      // Bounding volume origin is calculated. This might lose percision.
+      // We can determine how much the character has moved by looking at the origin point.
+      line.getCenter(newPosition);
+      deltaVector.subVectors(newPosition, character.position);
+      character.position.add(deltaVector);
+    },
+    [character, collider?.geometry.boundsTree, modifiers, moveCharacter, store],
+  );
+
+  // Set fixed step size.
+  useLayoutEffect(() => {
+    Stages.Fixed.fixedStep = FIXED_STEP;
+  }, []);
+
   // Add gravity.
   useLayoutEffect(() => {
     const modifier = new THREE.Vector3(0, gravity, 0);
@@ -65,59 +122,17 @@ export function CharacterController({
     return () => removeModifier(modifier);
   }, [addModifier, gravity, modifiers, removeModifier]);
 
-  // Apply forces.
-  useUpdate((state, delta) => {
-    store.vec.set(0, 0, 0);
-
-    for (const modifier of modifiers) {
-      store.vec.add(modifier);
+  // Run physics simulation in fixed loop.
+  useUpdate((_, delta) => {
+    for (let i = 0; i < PHYSICS_STEPS; i++) {
+      step(delta / PHYSICS_STEPS);
     }
-
-    moveCharacter(store.vec, delta);
-  });
-
-  // Detect collisions and apply position displacements.
-  useUpdate(() => {
-    if (!collider?.geometry?.boundsTree || !character) return;
-    const { line, vec, vec2, box } = store;
-    const { boundingCapsule: capsule, boundingBox } = character;
-
-    // Update bounding volume.
-    character.computeBoundingVolume();
-    line.copy(capsule.line);
-    box.copy(boundingBox);
-
-    // Check for collisions.
-    collider.geometry.boundsTree.shapecast({
-      intersectsBounds: (box) => box.intersectsBox(box),
-      intersectsTriangle: (tri) => {
-        const triPoint = vec;
-        const capsulePoint = vec2;
-        const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-        // If the distance is less than the radius of the character, we have a collision.
-        if (distance < capsule.radius) {
-          const depth = capsule.radius - distance;
-          const direction = capsulePoint.sub(triPoint).normalize();
-          // Move the line segment so there is no longer an intersection with the character's box.
-          line.start.addScaledVector(direction, depth);
-          line.end.addScaledVector(direction, depth);
-        }
-      },
-    });
-
-    const newPosition = vec;
-    const deltaVector = vec2;
-    // Bounding volume origin is calculated. This might lose percision.
-    // We can determine how much the character has moved by looking at the origin point.
-    line.getCenter(newPosition);
-    deltaVector.subVectors(newPosition, character.position);
-    character.position.add(deltaVector);
-  });
+  }, Stages.Fixed);
 
   // Finally, sync mesh so movement is visible.
   useUpdate(() => {
     syncMeshToBoundingVolume();
-  }, Stages.Late);
+  }, Stages.Update);
 
   // Debugging visualizations.
   // We need to compute the bounding volume twice in order to visualize its change.
@@ -126,7 +141,7 @@ export function CharacterController({
       character?.updateMatrixWorld();
       character?.computeBoundingVolume();
     }
-  });
+  }, Stages.Update);
 
   useLineDebug(debug ? store.line : null);
   useBoxDebug(debug ? character?.boundingBox : null);
