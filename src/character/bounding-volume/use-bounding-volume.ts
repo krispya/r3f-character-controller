@@ -1,4 +1,4 @@
-import { MeasureHandler, useMeasure } from 'hooks/use-measure';
+import { MeasureHandler, useMeasure } from 'utilities/use-measure';
 import { useCallback, useState } from 'react';
 import * as THREE from 'three';
 
