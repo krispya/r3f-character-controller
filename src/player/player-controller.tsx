@@ -10,9 +10,10 @@ import * as THREE from 'three';
 
 type PlayerControllerProps = CharacterControllerProps & {
   gravity?: number;
+  movementSpeed?: number;
 };
 
-export function PlayerController({ children, gravity, ...rest }: PlayerControllerProps) {
+export function PlayerController({ children, gravity, movementSpeed, ...rest }: PlayerControllerProps) {
   const [store] = useState(() => ({
     forward: new THREE.Vector3(),
     right: new THREE.Vector3(),
@@ -52,7 +53,7 @@ export function PlayerController({ children, gravity, ...rest }: PlayerControlle
     <CharacterController {...rest}>
       {children}
       <Gravity gravity={gravity} />
-      <Movement movement={() => store.movement} />
+      <Movement movementSpeed={movementSpeed} movement={() => store.movement} />
     </CharacterController>
   );
 }

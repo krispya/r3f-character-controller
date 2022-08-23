@@ -17,6 +17,7 @@ export type CharacterControllerProps = {
   debug?: boolean;
   position?: Vector3;
   iterations?: number;
+  interpolation?: boolean;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -29,6 +30,7 @@ export function CharacterController({
   debug = false,
   position,
   iterations = ITERATIONS,
+  interpolation = true,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -36,6 +38,7 @@ export function CharacterController({
   const [store] = useState(() => ({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
+    prev: new THREE.Vector3(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
   }));
@@ -62,7 +65,8 @@ export function CharacterController({
   );
 
   const syncMeshToBoundingVolume = () => {
-    meshRef.current.position.copy(bounding.position);
+    if (!character) return;
+    meshRef.current.position.copy(character.position);
   };
 
   // Applies forces to the character, then checks for collision.
@@ -71,9 +75,10 @@ export function CharacterController({
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, box } = store;
+      const { line, vec, vec2, box, prev } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
 
+      prev.copy(character.position);
       vec.set(0, 0, 0);
 
       // Appply forces.
@@ -116,6 +121,15 @@ export function CharacterController({
     [character, collider?.geometry.boundsTree, modifiers, moveCharacter, store],
   );
 
+  const interpolatePosition = useCallback(() => {
+    if (!character) return;
+    const { prev } = store;
+    const alpha = Stages.Fixed.alpha;
+    const distance = prev.distanceTo(character.position);
+    // If we move more 1 unit assume we are teleporting and don't interpolate.
+    if (distance && distance < 1) character?.position.lerpVectors(prev, character.position, alpha);
+  }, [character, store]);
+
   // Set fixed step size.
   useLayoutEffect(() => {
     Stages.Fixed.fixedStep = FIXED_STEP;
@@ -130,6 +144,7 @@ export function CharacterController({
 
   // Finally, sync mesh so movement is visible.
   useUpdate(() => {
+    if (interpolation) interpolatePosition();
     syncMeshToBoundingVolume();
   }, Stages.Update);
 
