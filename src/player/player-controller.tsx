@@ -37,15 +37,13 @@ export function PlayerController({ children, gravity, ...rest }: PlayerControlle
     const { move } = controls;
     const { forward, right, movement } = store;
 
-    forward.set(0, 0, -1);
-    forward.applyQuaternion(state.camera.quaternion);
-    forward.y = 0;
+    forward.set(0, 0, -1).applyQuaternion(state.camera.quaternion);
     forward.normalize().multiplyScalar(move.y);
+    forward.y = 0;
 
-    right.set(1, 0, 0);
-    right.applyQuaternion(state.camera.quaternion);
-    right.y = 0;
+    right.set(1, 0, 0).applyQuaternion(state.camera.quaternion);
     right.normalize().multiplyScalar(move.x);
+    forward.y = 0;
 
     movement.addVectors(forward, right);
   }, Stages.Early);
