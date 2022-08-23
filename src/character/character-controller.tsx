@@ -5,19 +5,18 @@ import { useCollider } from 'collider/stores/collider-store';
 import { useLineDebug } from 'debug/use-line-debug';
 import { useBoxDebug } from 'debug/use-box-debug';
 import { useVolumeDebug } from 'debug/use-volume-debug';
-import { useBoundingVolume } from './hooks/use-bounding-volume';
+import { useBoundingVolume } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
-import { useModifiers } from './hooks/use-modifiers';
+import { useModifiers } from './modifiers/use-modifiers';
+import { CharacterControllerContext } from './contexts/character-controller-context';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
   debug?: boolean;
-  gravity?: number;
   position?: Vector3;
   iterations?: number;
 };
 
-const GRAVITY = -9.81;
 const FIXED_STEP = 1 / 60;
 // For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
 // This isn't affected by the length of the character's body. I'll automate this once I do more testing.
@@ -26,7 +25,6 @@ const ITERATIONS = 5;
 export function CharacterController({
   children,
   debug = false,
-  gravity = GRAVITY,
   position,
   iterations = ITERATIONS,
 }: CharacterControllerProps) {
@@ -40,7 +38,6 @@ export function CharacterController({
     line: new THREE.Line3(),
   }));
 
-  // Set up modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
 
   // Get world collider BVH.
@@ -75,7 +72,7 @@ export function CharacterController({
 
       // Appply forces.
       for (const modifier of modifiers) {
-        vec.add(modifier);
+        vec.add(modifier.value);
       }
 
       moveCharacter(vec, delta);
@@ -118,13 +115,6 @@ export function CharacterController({
     Stages.Fixed.fixedStep = FIXED_STEP;
   }, []);
 
-  // Add gravity.
-  useLayoutEffect(() => {
-    const modifier = new THREE.Vector3(0, gravity, 0);
-    addModifier(modifier);
-    return () => removeModifier(modifier);
-  }, [addModifier, gravity, modifiers, removeModifier]);
-
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {
     for (let i = 0; i < iterations; i++) {
@@ -151,8 +141,10 @@ export function CharacterController({
   useVolumeDebug(debug ? bounding : null);
 
   return (
-    <group position={position} ref={meshRef}>
-      {children}
-    </group>
+    <CharacterControllerContext.Provider value={{ modifiers, addModifier, removeModifier }}>
+      <group position={position} ref={meshRef}>
+        {children}
+      </group>
+    </CharacterControllerContext.Provider>
   );
 }

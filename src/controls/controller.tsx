@@ -109,7 +109,7 @@ export function Controller({
   return null;
 }
 
-export function useController() {
+export function useControls() {
   const controller = useStore((state) => state.controller);
   const [controls] = useState<{ [key: string]: any }>({});
 

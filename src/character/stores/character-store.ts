@@ -1,4 +1,4 @@
-import { BoundingVolume } from 'character/hooks/use-bounding-volume';
+import { BoundingVolume } from 'character/bounding-volume/use-bounding-volume';
 import create from 'zustand';
 
 type CharacterState = {
