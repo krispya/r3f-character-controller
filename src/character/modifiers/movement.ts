@@ -10,7 +10,7 @@ type MovementProps = {
 };
 
 export function Movement({ movementSpeed = 5, movement }: MovementProps) {
-  const { modifiers, addModifier, removeModifier } = useContext(CharacterControllerContext);
+  const { modifiers, addModifier, removeModifier, fsm } = useContext(CharacterControllerContext);
   const moveModifier = createModifier();
 
   useLayoutEffect(() => {
@@ -24,10 +24,10 @@ export function Movement({ movementSpeed = 5, movement }: MovementProps) {
     const isMoving = _movement.length() > 0;
 
     if (isMoving) {
-      //   send('MOVE');
+      fsm.send('MOVE');
       moveModifier.value.copy(_movement.multiplyScalar(movementSpeed));
     } else {
-      //   send('IDLE');
+      fsm.send('IDLE');
       moveModifier.value.set(0, 0, 0);
     }
   });

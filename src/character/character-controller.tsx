@@ -9,6 +9,8 @@ import { useBoundingVolume } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
+import { useInterpret } from '@xstate/react';
+import { characterMachine } from './machines/character-machine';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -38,7 +40,11 @@ export function CharacterController({
     line: new THREE.Line3(),
   }));
 
+  // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
+
+  // Get fininte state machine.
+  const fsm = useInterpret(characterMachine);
 
   // Get world collider BVH.
   const collider = useCollider((state) => state.collider);
@@ -141,7 +147,7 @@ export function CharacterController({
   useVolumeDebug(debug ? bounding : null);
 
   return (
-    <CharacterControllerContext.Provider value={{ modifiers, addModifier, removeModifier }}>
+    <CharacterControllerContext.Provider value={{ modifiers, addModifier, removeModifier, fsm }}>
       <group position={position} ref={meshRef}>
         {children}
       </group>
