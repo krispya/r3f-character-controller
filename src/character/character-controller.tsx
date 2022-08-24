@@ -17,7 +17,6 @@ export type CharacterControllerProps = {
   debug?: boolean;
   position?: Vector3;
   iterations?: number;
-  interpolation?: boolean;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -30,7 +29,6 @@ export function CharacterController({
   debug = false,
   position,
   iterations = ITERATIONS,
-  interpolation = true,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -38,8 +36,6 @@ export function CharacterController({
   const [store] = useState(() => ({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
-    prev: new THREE.Vector3(),
-    fixed: new THREE.Vector3(),
     force: new THREE.Vector3(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
@@ -125,15 +121,6 @@ export function CharacterController({
     [character, collider?.geometry.boundsTree, moveCharacter, store],
   );
 
-  const interpolatePosition = useCallback(() => {
-    if (!character) return;
-    const { prev, fixed } = store;
-    const alpha = Stages.Fixed.alpha;
-    const distance = prev.distanceTo(character.position);
-    // If we move more 1 unit assume we are teleporting and don't interpolate.
-    if (distance && distance < 1) character?.position.lerpVectors(prev, fixed, alpha);
-  }, [character, store]);
-
   // Set fixed step size.
   useLayoutEffect(() => {
     Stages.Fixed.fixedStep = FIXED_STEP;
@@ -141,21 +128,15 @@ export function CharacterController({
 
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {
-    if (!character) return;
-    store.prev.copy(character.position);
-
     calculateModifier();
 
     for (let i = 0; i < iterations; i++) {
       step(delta / iterations);
     }
-
-    store.fixed.copy(character.position);
   }, Stages.Fixed);
 
   // Finally, sync mesh so movement is visible.
   useUpdate(() => {
-    if (interpolation) interpolatePosition();
     syncMeshToBoundingVolume();
   }, Stages.Update);
 
