@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useCollider } from 'collider/stores/collider-store';
-import { MeshBVH, MeshBVHVisualizer, SAH } from 'three-mesh-bvh';
+import { MeshBVH, MeshBVHVisualizer } from 'three-mesh-bvh';
 import * as THREE from 'three';
 
 type ColliderProps = {
@@ -47,13 +47,7 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
     // Merge the geometry
     const merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
     // Create a BVH for the geometry
-    merged.boundsTree = new MeshBVH(merged, {
-      setBoundingBox: true,
-      strategy: SAH,
-      maxDepth: 10,
-      maxLeafTris: 30,
-      verbose: false,
-    });
+    merged.boundsTree = new MeshBVH(merged);
     // Create and store a mesh with BVH. We add a wireframe material for debugging
     const collider = new THREE.Mesh(
       merged,

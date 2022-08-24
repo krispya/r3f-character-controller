@@ -11,11 +11,11 @@ export function Player({ radius = 0.5, length = 0.65 }: PlayerProps) {
 
   return (
     <>
-      <mesh ref={playerRef}>
+      <mesh ref={playerRef} castShadow receiveShadow>
         <capsuleGeometry args={[radius, length, 8, 16]} />
         <meshStandardMaterial />
       </mesh>
-      <pointLight intensity={1.2} color="#38e4ed" />
+      {/* <pointLight intensity={1.2} color="#38e4ed" /> */}
     </>
   );
 }
