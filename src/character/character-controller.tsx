@@ -23,7 +23,7 @@ export type CharacterControllerProps = {
 const FIXED_STEP = 1 / 60;
 // For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
 // This isn't affected by the length of the character's body. I'll automate this once I do more testing.
-const ITERATIONS = 5;
+const ITERATIONS = 3;
 
 export function CharacterController({
   children,
@@ -39,6 +39,8 @@ export function CharacterController({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
     prev: new THREE.Vector3(),
+    fixed: new THREE.Vector3(),
+    force: new THREE.Vector3(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
   }));
@@ -69,24 +71,26 @@ export function CharacterController({
     meshRef.current.position.copy(character.position);
   };
 
+  const calculateModifier = () => {
+    const { force } = store;
+    force.set(0, 0, 0);
+
+    for (const modifier of modifiers) {
+      force.add(modifier.value);
+    }
+  };
+
   // Applies forces to the character, then checks for collision.
   // If one is detected then the character is moved to no longer collide.
   const step = useCallback(
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, box, prev } = store;
+      const { line, vec, vec2, box, force } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
 
-      prev.copy(character.position);
-      vec.set(0, 0, 0);
-
-      // Appply forces.
-      for (const modifier of modifiers) {
-        vec.add(modifier.value);
-      }
-
-      moveCharacter(vec, delta);
+      // Start by moving the character.
+      moveCharacter(force, delta);
 
       // Update bounding volume.
       character.computeBoundingVolume();
@@ -118,16 +122,16 @@ export function CharacterController({
       deltaVector.subVectors(newPosition, character.position);
       character.position.add(deltaVector);
     },
-    [character, collider?.geometry.boundsTree, modifiers, moveCharacter, store],
+    [character, collider?.geometry.boundsTree, moveCharacter, store],
   );
 
   const interpolatePosition = useCallback(() => {
     if (!character) return;
-    const { prev } = store;
+    const { prev, fixed } = store;
     const alpha = Stages.Fixed.alpha;
     const distance = prev.distanceTo(character.position);
     // If we move more 1 unit assume we are teleporting and don't interpolate.
-    if (distance && distance < 1) character?.position.lerpVectors(prev, character.position, alpha);
+    if (distance && distance < 1) character?.position.lerpVectors(prev, fixed, alpha);
   }, [character, store]);
 
   // Set fixed step size.
@@ -137,9 +141,16 @@ export function CharacterController({
 
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {
+    if (!character) return;
+    store.prev.copy(character.position);
+
+    calculateModifier();
+
     for (let i = 0; i < iterations; i++) {
       step(delta / iterations);
     }
+
+    store.fixed.copy(character.position);
   }, Stages.Fixed);
 
   // Finally, sync mesh so movement is visible.
