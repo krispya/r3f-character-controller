@@ -24,7 +24,7 @@ function Game() {
       />
 
       {/* <Fauna /> */}
-      <Collider>
+      <Collider simplify={0.3} debug={{ collider: true, visualizer: true }}>
         {/* <Terrain /> */}
         {/* <SimplePlane /> */}
         <LowPolyIslands />

@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 import { useCollider } from 'collider/stores/collider-store';
-import { MeshBVH, MeshBVHVisualizer } from 'three-mesh-bvh';
+import { MeshBVH, MeshBVHVisualizer, SAH } from 'three-mesh-bvh';
 import * as THREE from 'three';
 
 type ColliderProps = {
   children: React.ReactNode;
   debug?: { collider?: boolean; visualizer?: boolean };
+  simplify?: number;
 };
 
-export function Collider({ children, debug = { collider: false, visualizer: false } }: ColliderProps) {
+export function Collider({ children, debug = { collider: false, visualizer: false }, simplify }: ColliderProps) {
   const ref = useRef<THREE.Group>(null!);
   const [collider, setCollider] = useCollider((state) => [state.collider, state.setCollider]);
   const [visualizer, setVisualizer] = useState<MeshBVHVisualizer | undefined>(undefined);
@@ -45,9 +47,18 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
       }
     });
     // Merge the geometry
-    const merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
+    let merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
+    merged = BufferGeometryUtils.mergeVertices(merged);
+
+    // Simplify the geometry for better performance
+    if (simplify) {
+      const modifier = new SimplifyModifier();
+      const count = Math.floor(merged.attributes.position.count * simplify);
+      merged = modifier.modify(merged, count);
+    }
+
     // Create a BVH for the geometry
-    merged.boundsTree = new MeshBVH(merged);
+    merged.boundsTree = new MeshBVH(merged, { strategy: SAH });
     // Create and store a mesh with BVH. We add a wireframe material for debugging
     const collider = new THREE.Mesh(
       merged,
@@ -61,7 +72,7 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
     setCollider(collider);
     // Set flag so we don't init our BVH more than once
     init.current = false;
-  }, [setCollider]);
+  }, [setCollider, simplify]);
 
   useEffect(() => {
     if (collider) {
