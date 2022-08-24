@@ -168,9 +168,9 @@ export function CharacterController({
     }
   }, Stages.Update);
 
-  useLineDebug(debug ? store.line : null);
+  useLineDebug(debug ? character?.boundingCapsule.line : null);
   useBoxDebug(debug ? character?.boundingBox : null);
-  useVolumeDebug(debug ? bounding : null);
+  useVolumeDebug(debug ? character : null);
 
   return (
     <CharacterControllerContext.Provider value={{ modifiers, addModifier, removeModifier, fsm }}>
