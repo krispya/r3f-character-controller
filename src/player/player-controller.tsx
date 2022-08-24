@@ -29,7 +29,13 @@ export function PlayerController({ children, gravity, movementSpeed, ...rest }: 
   // Reset if we fall off the level.
   useUpdate(() => {
     if (character && character.position.y < -5) {
-      character.position.set(0, 0, 0);
+      if (rest.position) {
+        if (Array.isArray(rest.position)) character.position.set(...rest.position);
+        if (rest.position instanceof THREE.Vector3) character.position.copy(rest.position);
+        if (typeof rest.position === 'number') character.position.set(rest.position, rest.position, rest.position);
+      } else {
+        character.position.set(0, 0, 0);
+      }
     }
   });
 
