@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useCollider } from 'collider/stores/collider-store';
-import { MeshBVH, MeshBVHVisualizer, SAH } from 'three-mesh-bvh';
+import {
+  acceleratedRaycast,
+  computeBoundsTree,
+  disposeBoundsTree,
+  MeshBVH,
+  MeshBVHVisualizer,
+  SAH,
+} from 'three-mesh-bvh';
 import * as THREE from 'three';
 // @ts-ignore // Using our own SimplifyModifier to fix a bug.
 import { SimplifyModifier } from './SimplifyModifier';
@@ -24,7 +31,7 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
     const geometries: THREE.BufferGeometry[] = [];
 
     // This is more imporant than it seems. We want to make sure our geometry is centered with the Box3
-    // to aboid floating point precision headaches.
+    // to avoid floating point precision headaches.
     const box = new THREE.Box3();
     box.setFromObject(ref.current);
     box.getCenter(ref.current.position).negate();
@@ -71,8 +78,12 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
         depthWrite: false,
       }),
     );
+    collider.raycast = acceleratedRaycast;
+    collider.geometry.computeBoundsTree = computeBoundsTree;
+    collider.geometry.disposeBoundsTree = disposeBoundsTree;
+
     setCollider(collider);
-    // Set flag so we don't init our BVH more than once
+
     init.current = false;
   }, [setCollider, simplify]);
 
@@ -82,6 +93,11 @@ export function Collider({ children, debug = { collider: false, visualizer: fals
       setVisualizer(visualizer);
     }
   }, [collider]);
+
+  // Dispose of the BVH if we unmount.
+  useEffect(() => {
+    return () => collider?.geometry.disposeBoundsTree();
+  }, [collider?.geometry]);
 
   return (
     <>
