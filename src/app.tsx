@@ -30,7 +30,7 @@ function Game() {
         {/* <LowPolyIslands /> */}
       </Collider>
 
-      <PlayerController position={[0, 5, 0]} gravity={0} movementSpeed={10} debug>
+      <PlayerController position={[0, 5, 0]} movementSpeed={10} debug>
         <Player radius={0.5 / 2} length={0.65 / 2} />
       </PlayerController>
       <CameraController />
