@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 import { useCollider } from 'collider/stores/collider-store';
 import { MeshBVH, MeshBVHVisualizer, SAH } from 'three-mesh-bvh';
 import * as THREE from 'three';
+// @ts-ignore // Using our own SimplifyModifier to fix a bug.
+import { SimplifyModifier } from './SimplifyModifier';
+// import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
 type ColliderProps = {
   children: React.ReactNode;

@@ -4,13 +4,13 @@ import { StrictMode, Suspense } from 'react';
 import { Controller } from 'controls/controller';
 import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
-// import { Fauna } from 'test-assets/fauna';
-// import { Terrain } from 'test-assets/terrain';
+import { Fauna } from 'test-assets/fauna';
+import { Terrain } from 'test-assets/terrain';
 import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 import { PlayerController } from 'player/player-controller';
 // import { SimplePlane } from 'test-assets/simple-plane';
-import { LowPolyIslands } from 'test-assets/low-poly-island';
+// import { LowPolyIslands } from 'test-assets/low-poly-island';
 
 function Game() {
   return (
@@ -23,14 +23,14 @@ function Game() {
         })}
       />
 
-      {/* <Fauna /> */}
-      <Collider simplify={0.3} debug={{ collider: true, visualizer: true }}>
-        {/* <Terrain /> */}
+      <Fauna />
+      <Collider simplify={0.35} debug={{ collider: true, visualizer: true }}>
+        <Terrain />
         {/* <SimplePlane /> */}
-        <LowPolyIslands />
+        {/* <LowPolyIslands /> */}
       </Collider>
 
-      <PlayerController position={[0, 5, 0]} movementSpeed={10} debug>
+      <PlayerController position={[0, 5, 0]} gravity={0} movementSpeed={10} debug>
         <Player radius={0.5 / 2} length={0.65 / 2} />
       </PlayerController>
       <CameraController />
