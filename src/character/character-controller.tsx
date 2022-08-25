@@ -95,7 +95,7 @@ export function CharacterController({
 
       // Check for collisions.
       collider.geometry.boundsTree.shapecast({
-        intersectsBounds: (box) => box.intersectsBox(box),
+        intersectsBounds: (bounds) => bounds.intersectsBox(box),
         intersectsTriangle: (tri) => {
           const triPoint = vec;
           const capsulePoint = vec2;
