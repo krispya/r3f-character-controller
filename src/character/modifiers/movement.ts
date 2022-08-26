@@ -4,19 +4,19 @@ import { useContext, useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
 
-type MovementProps = {
+export type MovementProps = {
   movementSpeed?: number;
   movement?: () => THREE.Vector3;
 };
 
 export function Movement({ movementSpeed = 5, movement }: MovementProps) {
   const { modifiers, addModifier, removeModifier, fsm } = useContext(CharacterControllerContext);
-  const moveModifier = createModifier();
+  const modifier = createModifier('movement');
 
   useLayoutEffect(() => {
-    addModifier(moveModifier);
-    return () => removeModifier(moveModifier);
-  }, [addModifier, modifiers, moveModifier, removeModifier]);
+    addModifier(modifier);
+    return () => removeModifier(modifier);
+  }, [addModifier, modifiers, modifier, removeModifier]);
 
   useUpdate(() => {
     if (!movement) return;
@@ -25,10 +25,10 @@ export function Movement({ movementSpeed = 5, movement }: MovementProps) {
 
     if (isMoving) {
       fsm.send('MOVE');
-      moveModifier.value.copy(_movement.multiplyScalar(movementSpeed));
+      modifier.value.copy(_movement.multiplyScalar(movementSpeed));
     } else {
       fsm.send('IDLE');
-      moveModifier.value.set(0, 0, 0);
+      modifier.value.set(0, 0, 0);
     }
   });
 

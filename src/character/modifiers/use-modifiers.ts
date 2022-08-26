@@ -3,9 +3,12 @@ import * as THREE from 'three';
 
 export class Modifier {
   private _value: THREE.Vector3;
+  private _name: string;
+  private _onJump?: () => void;
 
-  constructor(x?: number, y?: number, z?: number) {
-    this._value = new THREE.Vector3(x, y, z);
+  constructor(name?: string) {
+    this._value = new THREE.Vector3();
+    this._name = name ?? 'modifier';
   }
 
   get value(): THREE.Vector3 {
@@ -15,9 +18,21 @@ export class Modifier {
   set value(value: THREE.Vector3) {
     this._value = value;
   }
+
+  get name(): string {
+    return this._name;
+  }
+
+  get onJump(): (() => void) | undefined {
+    return this._onJump;
+  }
+
+  set onJump(onJump: (() => void) | undefined) {
+    this._onJump = onJump;
+  }
 }
 
-export const createModifier = (x?: number, y?: number, z?: number) => new Modifier(x, y, z);
+export const createModifier = (name?: string) => new Modifier(name);
 
 export function useModifiers() {
   const [modifiers] = useState<Modifier[]>([]);

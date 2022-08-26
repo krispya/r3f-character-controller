@@ -8,6 +8,8 @@ type CharacterControllerState = {
   addModifier: (modifier: Modifier) => void;
   removeModifier: (modifier: Modifier) => void;
   fsm: InterpreterFrom<typeof characterMachine>;
+  getDeltaVector: () => THREE.Vector3;
+  getVelocity: () => THREE.Vector3;
 };
 
 export const CharacterControllerContext = createContext<CharacterControllerState>(null!);
