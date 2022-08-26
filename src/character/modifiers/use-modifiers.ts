@@ -4,7 +4,6 @@ import * as THREE from 'three';
 export class Modifier {
   private _value: THREE.Vector3;
   private _name: string;
-  private _onJump?: () => void;
 
   constructor(name?: string) {
     this._value = new THREE.Vector3();
@@ -21,14 +20,6 @@ export class Modifier {
 
   get name(): string {
     return this._name;
-  }
-
-  get onJump(): (() => void) | undefined {
-    return this._onJump;
-  }
-
-  set onJump(onJump: (() => void) | undefined) {
-    this._onJump = onJump;
   }
 }
 

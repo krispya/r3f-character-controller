@@ -10,7 +10,7 @@ import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
 import { useInterpret } from '@xstate/react';
-import { characterMachine } from './machines/character-machine';
+import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 
 export type CharacterControllerProps = {
@@ -18,7 +18,7 @@ export type CharacterControllerProps = {
   debug?: boolean;
   position?: Vector3;
   iterations?: number;
-  groundedOffset?: number;
+  groundDetectionOffset?: number;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -31,7 +31,7 @@ export function CharacterController({
   debug = false,
   position,
   iterations = ITERATIONS,
-  groundedOffset = 0.1,
+  groundDetectionOffset = 0.2,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -46,29 +46,36 @@ export function CharacterController({
     raycaster: new THREE.Raycaster(),
     toggle: true,
     timer: 0,
+    isGrounded: false,
+    isGroundedMovement: false,
+    isFalling: false,
   });
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
 
   // Get fininte state machine.
-  const fsm = useInterpret(characterMachine, {
-    actions: {
-      onJump: () => {
-        modifiers.forEach((modifier) => modifier?.onJump && modifier.onJump());
-      },
-      onAirborne: () => {
-        clearTimeout(store.timer);
-        store.toggle = false;
-        store.timer = setTimeout(() => (store.toggle = true), 100);
-      },
-      onGrounded: () => {
-        clearTimeout(store.timer);
-        store.toggle = false;
-        store.timer = setTimeout(() => (store.toggle = true), 100);
+  const fsm = useInterpret(
+    movementMachine,
+    {
+      actions: {
+        onFall: () => {
+          clearTimeout(store.timer);
+          store.toggle = false;
+          store.timer = setTimeout(() => (store.toggle = true), 100);
+        },
+        onWalk: () => {
+          clearTimeout(store.timer);
+          store.toggle = false;
+          store.timer = setTimeout(() => (store.toggle = true), 100);
+        },
       },
     },
-  });
+    (state) => {
+      store.isGroundedMovement = state.matches('walking');
+      store.isFalling = state.matches('falling');
+    },
+  );
 
   // Get world collider BVH.
   const collider = useCollider((state) => state.collider);
@@ -86,16 +93,17 @@ export function CharacterController({
   );
 
   const detectGround = useCallback(() => {
-    if (!character || !collider) return;
+    if (!character || !collider) return false;
+
     const { raycaster, vec } = store;
     const { boundingCapsule: capsule } = character;
 
     raycaster.set(character.position, vec.set(0, -1, 0));
-    raycaster.far = capsule.length / 2 + capsule.radius + groundedOffset;
+    raycaster.far = capsule.length / 2 + capsule.radius + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
     return res.length !== 0;
-  }, [character, collider, groundedOffset, store]);
+  }, [character, collider, groundDetectionOffset, store]);
 
   const syncMeshToBoundingVolume = () => {
     if (!character) return;
@@ -108,6 +116,7 @@ export function CharacterController({
 
     for (const modifier of modifiers) {
       velocity.add(modifier.value);
+      // console.log(modifier.name, modifier.value.y);
     }
   };
 
@@ -158,12 +167,12 @@ export function CharacterController({
 
       character.position.add(deltaVector);
 
-      const isGrounded = detectGround();
+      store.isGrounded = detectGround();
 
-      // Set character world state. We have a cooldown to prevent false positives when jumping.
+      // Set character movement state. We have a cooldown to prevent false positives.
       if (store.toggle) {
-        if (isGrounded) fsm.send('GROUNDED');
-        if (!isGrounded) fsm.send('AIRBORNE');
+        if (store.isGrounded) fsm.send('WALK');
+        if (!store.isGrounded) fsm.send('FALL');
       }
     },
     [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
@@ -203,16 +212,21 @@ export function CharacterController({
 
   const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
+  const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
+  const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);
+  const getIsFalling = useCallback(() => store.isFalling, [store]);
 
   return (
     <CharacterControllerContext.Provider
       value={{
-        modifiers,
         addModifier,
         removeModifier,
         fsm,
         getVelocity,
         getDeltaVector,
+        getIsGroundedMovement,
+        getIsWalking,
+        getIsFalling,
       }}>
       <group position={position} ref={meshRef}>
         {children}

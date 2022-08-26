@@ -1,29 +1,22 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext, useLayoutEffect, useRef, useEffect } from 'react';
+import { useContext, useLayoutEffect } from 'react';
 import { createModifier } from './use-modifiers';
 
 export function AirCollision() {
-  const { modifiers, addModifier, removeModifier, fsm, getDeltaVector, getVelocity } =
+  const { addModifier, removeModifier, getDeltaVector, getVelocity, getIsGroundedMovement } =
     useContext(CharacterControllerContext);
   const modifier = createModifier('air-collision');
-  const isGrounded = useRef(false);
 
   useLayoutEffect(() => {
     addModifier(modifier);
     return () => removeModifier(modifier);
-  }, [addModifier, modifiers, removeModifier, modifier]);
-
-  useEffect(() => {
-    const subscription = fsm.subscribe((state) => {
-      isGrounded.current = state.matches('grounded');
-    });
-    return () => subscription.unsubscribe();
-  }, [fsm]);
+  }, [addModifier, removeModifier, modifier]);
 
   useUpdate(() => {
+    const isGrounded = getIsGroundedMovement();
     // Reflect velocity if character collides while airborne.
-    if (!isGrounded.current) {
+    if (!isGrounded) {
       const velocity = getVelocity();
       const deltaVector = getDeltaVector();
 

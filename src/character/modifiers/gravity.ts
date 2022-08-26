@@ -1,6 +1,6 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext, useLayoutEffect, useEffect, useRef } from 'react';
+import { useContext, useLayoutEffect } from 'react';
 import { createModifier } from './use-modifiers';
 
 export type GravityProps = {
@@ -18,24 +18,18 @@ export function Gravity({
   alwaysOn = false,
   maxFallSpeed = -50,
 }: GravityProps) {
-  const { modifiers, addModifier, removeModifier, fsm } = useContext(CharacterControllerContext);
-  const isGrounded = useRef(false);
+  const { addModifier, removeModifier, getIsGroundedMovement } = useContext(CharacterControllerContext);
   const modifier = createModifier('gravity');
 
   useLayoutEffect(() => {
     addModifier(modifier);
     return () => removeModifier(modifier);
-  }, [addModifier, gravity, modifier, modifiers, removeModifier]);
-
-  useEffect(() => {
-    const subscription = fsm.subscribe((state) => {
-      isGrounded.current = state.matches('grounded');
-    });
-    return () => subscription.unsubscribe();
-  }, [fsm]);
+  }, [addModifier, gravity, modifier, removeModifier]);
 
   useUpdate((_, delta) => {
-    if (isGrounded.current) {
+    const isGrounded = getIsGroundedMovement();
+
+    if (isGrounded) {
       modifier.value.y = alwaysOn ? gravity : groundedGravity;
     } else {
       modifier.value.y = Math.max(modifier.value.y + gravity * delta, maxFallSpeed);

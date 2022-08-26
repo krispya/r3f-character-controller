@@ -1,9 +1,10 @@
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCameraController } from 'camera/stores/camera-store';
 import { CharacterController, CharacterControllerProps } from 'character/character-controller';
+import { Falling, FallingProps } from 'character/modifiers/falling';
 import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';
-import { Movement, MovementProps } from 'character/modifiers/movement';
+import { Walking, WalkingProps, WALK_SPEED } from 'character/modifiers/walking';
 import { useCharacterController } from 'character/stores/character-store';
 import { useControls } from 'controls/controller';
 import { useEffect, useState } from 'react';
@@ -12,15 +13,23 @@ import * as THREE from 'three';
 type PlayerControllerProps = CharacterControllerProps &
   Omit<GravityProps, 'alwaysOn'> &
   Omit<JumpProps, 'jump'> &
-  Omit<MovementProps, 'movement'> & {
+  Omit<WalkingProps, 'movement' | 'speed'> &
+  Omit<FallingProps, 'movement' | 'speed'> & {
     gravityAlwaysOn?: boolean;
+    walkSpeed?: number;
+    airControl?: number;
   };
 
-export function PlayerController({ children, ...props }: PlayerControllerProps) {
+export function PlayerController({
+  children,
+  walkSpeed = WALK_SPEED,
+  airControl = 0.5,
+  ...props
+}: PlayerControllerProps) {
   const [store] = useState(() => ({
     forward: new THREE.Vector3(),
     right: new THREE.Vector3(),
-    movement: new THREE.Vector3(),
+    walk: new THREE.Vector3(),
   }));
 
   const character = useCharacterController((state) => state.character);
@@ -45,7 +54,7 @@ export function PlayerController({ children, ...props }: PlayerControllerProps) 
   // Update the player's movement vector based on camera direction.
   useUpdate((state) => {
     const { move } = controls;
-    const { forward, right, movement } = store;
+    const { forward, right, walk } = store;
 
     forward.set(0, 0, -1).applyQuaternion(state.camera.quaternion);
     forward.normalize().multiplyScalar(move.y);
@@ -55,7 +64,7 @@ export function PlayerController({ children, ...props }: PlayerControllerProps) 
     right.normalize().multiplyScalar(move.x);
     forward.y = 0;
 
-    movement.addVectors(forward, right);
+    walk.addVectors(forward, right);
   }, Stages.Early);
 
   return (
@@ -63,16 +72,17 @@ export function PlayerController({ children, ...props }: PlayerControllerProps) 
       position={props.position}
       debug={props.debug}
       iterations={props.iterations}
-      groundedOffset={props.groundedOffset}>
+      groundDetectionOffset={props.groundDetectionOffset}>
       {children}
+      <Walking movement={() => store.walk} speed={walkSpeed} />
+      <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
+      <Jump jump={() => controls.jump} jumpSpeed={props.jumpSpeed} />
       <Gravity
         gravity={props.gravity}
         groundedGravity={props.groundedGravity}
         alwaysOn={props.gravityAlwaysOn}
         maxFallSpeed={props.maxFallSpeed}
       />
-      <Movement movement={() => store.movement} movementSpeed={props.movementSpeed} />
-      <Jump jump={() => controls.jump} jumpSpeed={props.jumpSpeed} />
     </CharacterController>
   );
 }

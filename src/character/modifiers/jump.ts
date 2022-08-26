@@ -1,6 +1,6 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useContext, useLayoutEffect, useState } from 'react';
 import { GRAVITY } from './gravity';
 import { createModifier } from './use-modifiers';
 
@@ -12,11 +12,11 @@ export type JumpProps = {
 };
 
 export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAcceleration = GRAVITY * 2 }: JumpProps) {
-  const { modifiers, addModifier, removeModifier, fsm, getDeltaVector } = useContext(CharacterControllerContext);
+  const { addModifier, removeModifier, getDeltaVector, getIsGroundedMovement, fsm } =
+    useContext(CharacterControllerContext);
   const modifier = createModifier('jump');
   const [store] = useState({
     isRising: false,
-    isGrounded: false,
     jumpBeingTime: 0,
     prevInput: false,
     inputReleased: true,
@@ -25,36 +25,29 @@ export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAccelera
   useLayoutEffect(() => {
     addModifier(modifier);
     return () => removeModifier(modifier);
-  }, [addModifier, modifiers, modifier, removeModifier]);
+  }, [addModifier, modifier, removeModifier]);
 
-  useEffect(() => {
-    const subscription = fsm.subscribe((state) => {
-      store.isGrounded = state.matches('grounded');
-    });
-    return () => subscription.unsubscribe();
-  }, [fsm, store]);
-
-  useEffect(() => {
-    modifier.onJump = () => {
-      store.isRising = true;
-      store.jumpBeingTime = performance.now();
-      modifier.value.set(0, jumpSpeed, 0);
-    };
-  }, [jumpSpeed, modifier, store]);
+  const performJump = useCallback(() => {
+    fsm.send('FALL');
+    store.isRising = true;
+    store.jumpBeingTime = performance.now();
+    modifier.value.set(0, jumpSpeed, 0);
+  }, [fsm, jumpSpeed, modifier.value, store]);
 
   useUpdate((_, delta) => {
     if (!jump) return;
     const jumpInput = jump();
     const deltaVector = getDeltaVector();
+    const isGrounded = getIsGroundedMovement();
     if (store.prevInput && !jumpInput) store.inputReleased = true;
 
-    if (store.isGrounded) {
+    if (isGrounded) {
       store.isRising = false;
       modifier.value.set(0, 0, 0);
     }
 
-    if (jumpInput && store.isGrounded) {
-      if (store.inputReleased) fsm.send('JUMP');
+    if (jumpInput && isGrounded) {
+      if (store.inputReleased) performJump();
       store.inputReleased = false;
     }
 
@@ -62,7 +55,7 @@ export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAccelera
 
     if (store.isRising && performance.now() > store.jumpBeingTime + jumpDuration) store.isRising = false;
 
-    if (!store.isRising && !store.isGrounded) modifier.value.y += comebackAcceleration * delta;
+    if (!store.isRising && !isGrounded) modifier.value.y += comebackAcceleration * delta;
 
     if (deltaVector.normalize().y < -0.9) modifier.value.y = 0;
 
