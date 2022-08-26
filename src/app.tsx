@@ -24,13 +24,13 @@ function Game() {
       />
 
       <Fauna />
-      <Collider simplify={0.35} debug={{ collider: true, visualizer: true }}>
+      <Collider simplify={0.35}>
         <Terrain />
         {/* <SimplePlane /> */}
         {/* <LowPolyIslands /> */}
       </Collider>
 
-      <PlayerController position={[0, 5, 0]} movementSpeed={10} debug>
+      <PlayerController position={[0, 5, 0]} movementSpeed={5} debug>
         <Player radius={0.5 / 2} length={0.65 / 2} />
       </PlayerController>
       <CameraController />

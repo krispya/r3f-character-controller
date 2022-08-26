@@ -1,19 +1,22 @@
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCameraController } from 'camera/stores/camera-store';
 import { CharacterController, CharacterControllerProps } from 'character/character-controller';
-import { Gravity } from 'character/modifiers/gravity';
-import { Movement } from 'character/modifiers/movement';
+import { Gravity, GravityProps } from 'character/modifiers/gravity';
+import { Jump, JumpProps } from 'character/modifiers/jump';
+import { Movement, MovementProps } from 'character/modifiers/movement';
 import { useCharacterController } from 'character/stores/character-store';
 import { useControls } from 'controls/controller';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 
-type PlayerControllerProps = CharacterControllerProps & {
-  gravity?: number;
-  movementSpeed?: number;
-};
+type PlayerControllerProps = CharacterControllerProps &
+  Omit<GravityProps, 'alwaysOn'> &
+  Omit<JumpProps, 'jump'> &
+  Omit<MovementProps, 'movement'> & {
+    gravityAlwaysOn?: boolean;
+  };
 
-export function PlayerController({ children, gravity, movementSpeed, ...rest }: PlayerControllerProps) {
+export function PlayerController({ children, ...props }: PlayerControllerProps) {
   const [store] = useState(() => ({
     forward: new THREE.Vector3(),
     right: new THREE.Vector3(),
@@ -28,11 +31,11 @@ export function PlayerController({ children, gravity, movementSpeed, ...rest }: 
 
   // Reset if we fall off the level.
   useUpdate(() => {
-    if (character && character.position.y < -5) {
-      if (rest.position) {
-        if (Array.isArray(rest.position)) character.position.set(...rest.position);
-        if (rest.position instanceof THREE.Vector3) character.position.copy(rest.position);
-        if (typeof rest.position === 'number') character.position.set(rest.position, rest.position, rest.position);
+    if (character && character.position.y < -10) {
+      if (props.position) {
+        if (Array.isArray(props.position)) character.position.set(...props.position);
+        if (props.position instanceof THREE.Vector3) character.position.copy(props.position);
+        if (typeof props.position === 'number') character.position.set(props.position, props.position, props.position);
       } else {
         character.position.set(0, 0, 0);
       }
@@ -56,10 +59,20 @@ export function PlayerController({ children, gravity, movementSpeed, ...rest }: 
   }, Stages.Early);
 
   return (
-    <CharacterController {...rest}>
+    <CharacterController
+      position={props.position}
+      debug={props.debug}
+      iterations={props.iterations}
+      groundedOffset={props.groundedOffset}>
       {children}
-      <Gravity gravity={gravity} />
-      <Movement movementSpeed={movementSpeed} movement={() => store.movement} />
+      <Gravity
+        gravity={props.gravity}
+        groundedGravity={props.groundedGravity}
+        alwaysOn={props.gravityAlwaysOn}
+        maxFallSpeed={props.maxFallSpeed}
+      />
+      <Movement movement={() => store.movement} movementSpeed={props.movementSpeed} />
+      <Jump jump={() => controls.jump} jumpSpeed={props.jumpSpeed} />
     </CharacterController>
   );
 }
