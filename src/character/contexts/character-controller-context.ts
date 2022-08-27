@@ -12,6 +12,7 @@ type CharacterControllerState = {
   getIsGroundedMovement: () => boolean;
   getIsFalling: () => boolean;
   getIsWalking: () => boolean;
+  getGroundNormal: () => THREE.Vector3;
 };
 
 export const CharacterControllerContext = createContext<CharacterControllerState>(null!);

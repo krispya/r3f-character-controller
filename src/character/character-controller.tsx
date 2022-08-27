@@ -49,6 +49,7 @@ export function CharacterController({
     isGrounded: false,
     isGroundedMovement: false,
     isFalling: false,
+    groundNormal: new THREE.Vector3(),
   });
 
   // Get movement modifiers.
@@ -95,13 +96,15 @@ export function CharacterController({
   const detectGround = useCallback(() => {
     if (!character || !collider) return false;
 
-    const { raycaster, vec } = store;
+    const { raycaster, vec, groundNormal } = store;
     const { boundingCapsule: capsule } = character;
 
     raycaster.set(character.position, vec.set(0, -1, 0));
     raycaster.far = capsule.length / 2 + capsule.radius + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
+    res[0]?.face ? groundNormal.copy(res[0].face.normal) : groundNormal.set(0, 0, 0);
+
     return res.length !== 0;
   }, [character, collider, groundDetectionOffset, store]);
 
@@ -161,8 +164,8 @@ export function CharacterController({
       line.getCenter(newPosition);
       deltaVector.subVectors(newPosition, character.position);
 
-      // Set precision to 1e-7.
-      const offset = Math.max(0.0, deltaVector.length() - 1e-7);
+      // Discard values smaller than our tolerance.
+      const offset = Math.max(0, deltaVector.length() - 1e-7);
       deltaVector.normalize().multiplyScalar(offset);
 
       character.position.add(deltaVector);
@@ -215,6 +218,7 @@ export function CharacterController({
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
   const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);
   const getIsFalling = useCallback(() => store.isFalling, [store]);
+  const getGroundNormal = useCallback(() => store.groundNormal, [store]);
 
   return (
     <CharacterControllerContext.Provider
@@ -227,6 +231,7 @@ export function CharacterController({
         getIsGroundedMovement,
         getIsWalking,
         getIsFalling,
+        getGroundNormal,
       }}>
       <group position={position} ref={meshRef}>
         {children}

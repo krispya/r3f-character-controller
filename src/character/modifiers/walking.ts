@@ -1,6 +1,6 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext, useLayoutEffect, useState } from 'react';
+import { useContext, useLayoutEffect } from 'react';
 import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
 
@@ -12,13 +12,25 @@ export type WalkingProps = {
 };
 
 export function Walking({ speed = WALK_SPEED, movement }: WalkingProps) {
-  const { addModifier, removeModifier, getIsWalking } = useContext(CharacterControllerContext);
+  const { addModifier, removeModifier, getIsWalking, getGroundNormal } = useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
 
   useLayoutEffect(() => {
     addModifier(modifier);
     return () => removeModifier(modifier);
   }, [addModifier, modifier, removeModifier]);
+
+  const adjustVelocityToSlope = (velocity: THREE.Vector3) => {
+    const normal = getGroundNormal();
+    const slopeRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    const adjustedVelocity = new THREE.Vector3().copy(velocity).applyQuaternion(slopeRotation);
+
+    if (adjustedVelocity.y < 0) {
+      return adjustedVelocity;
+    }
+
+    return velocity;
+  };
 
   useUpdate(() => {
     if (!movement) return;
@@ -27,7 +39,9 @@ export function Walking({ speed = WALK_SPEED, movement }: WalkingProps) {
     const isWalking = getIsWalking();
 
     if (isWalking && input.length() > 0) {
-      modifier.value.copy(input.multiplyScalar(speed));
+      const velocity = input.multiplyScalar(speed);
+      velocity.copy(adjustVelocityToSlope(velocity));
+      modifier.value.copy(velocity);
     } else {
       modifier.value.set(0, 0, 0);
     }
