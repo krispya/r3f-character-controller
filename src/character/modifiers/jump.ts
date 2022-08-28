@@ -9,17 +9,25 @@ export type JumpProps = {
   jump?: () => boolean;
   jumpDuration?: number;
   comebackAcceleration?: number;
+  coyoteTime?: number;
 };
 
-export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAcceleration = GRAVITY * 2 }: JumpProps) {
+export function Jump({
+  jumpSpeed = 6,
+  jump,
+  jumpDuration = 300,
+  comebackAcceleration = GRAVITY * 2,
+  coyoteTime = 0.2,
+}: JumpProps) {
   const { addModifier, removeModifier, getDeltaVector, getIsGroundedMovement, fsm } =
     useContext(CharacterControllerContext);
   const modifier = createModifier('jump');
   const [store] = useState({
     isRising: false,
-    jumpBeingTime: 0,
+    jumpStartTime: 0,
     prevInput: false,
     inputReleased: true,
+    groundedTime: 0,
   });
 
   useLayoutEffect(() => {
@@ -30,7 +38,7 @@ export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAccelera
   const performJump = useCallback(() => {
     fsm.send('FALL');
     store.isRising = true;
-    store.jumpBeingTime = performance.now();
+    store.jumpStartTime = performance.now();
     modifier.value.set(0, jumpSpeed, 0);
   }, [fsm, jumpSpeed, modifier.value, store]);
 
@@ -44,16 +52,19 @@ export function Jump({ jumpSpeed = 6, jump, jumpDuration = 300, comebackAccelera
     if (isGrounded) {
       store.isRising = false;
       modifier.value.set(0, 0, 0);
+      store.groundedTime = performance.now();
     }
 
-    if (jumpInput && isGrounded) {
-      if (store.inputReleased) performJump();
-      store.inputReleased = false;
+    if (performance.now() - store.groundedTime <= coyoteTime) {
+      if (jumpInput && isGrounded) {
+        if (store.inputReleased) performJump();
+        store.inputReleased = false;
+      }
     }
 
     if (store.isRising && !jumpInput) store.isRising = false;
 
-    if (store.isRising && performance.now() > store.jumpBeingTime + jumpDuration) store.isRising = false;
+    if (store.isRising && performance.now() > store.jumpStartTime + jumpDuration) store.isRising = false;
 
     if (!store.isRising && !isGrounded) modifier.value.y += comebackAcceleration * delta;
 
