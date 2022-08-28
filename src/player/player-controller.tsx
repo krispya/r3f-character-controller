@@ -62,7 +62,7 @@ export function PlayerController({
 
     right.set(1, 0, 0).applyQuaternion(state.camera.quaternion);
     right.normalize().multiplyScalar(move.x);
-    forward.y = 0;
+    right.y = 0;
 
     walk.addVectors(forward, right);
   }, Stages.Early);
