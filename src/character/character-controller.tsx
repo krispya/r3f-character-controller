@@ -2,9 +2,6 @@ import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCollider } from 'collider/stores/collider-store';
-import { useLineDebug } from 'utilities/use-line-debug';
-import { useBoxDebug } from 'utilities/use-box-debug';
-import { useVolumeDebug } from 'utilities/use-volume-debug';
 import { useBoundingVolume } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
@@ -12,10 +9,11 @@ import { CharacterControllerContext } from './contexts/character-controller-cont
 import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
+import { VolumeDebug } from './bounding-volume/volume-debug';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
-  debug?: boolean;
+  debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean };
   position?: Vector3;
   iterations?: number;
   groundDetectionOffset?: number;
@@ -35,6 +33,8 @@ export function CharacterController({
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
+
+  const _debug = typeof debug === 'boolean' ? { showCollider: true, showLine: false, showBox: false } : debug;
 
   const [store] = useState({
     vec: new THREE.Vector3(),
@@ -200,19 +200,6 @@ export function CharacterController({
     syncMeshToBoundingVolume();
   }, Stages.Update);
 
-  // Debugging visualizations.
-  // We need to compute the bounding volume twice in order to visualize its change.
-  useUpdate(() => {
-    if (debug) {
-      character?.updateMatrixWorld();
-      character?.computeBoundingVolume();
-    }
-  }, Stages.Update);
-
-  useLineDebug(debug ? character?.boundingCapsule.line : null);
-  useBoxDebug(debug ? character?.boundingBox : null);
-  useVolumeDebug(debug ? character : null);
-
   const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
@@ -237,6 +224,7 @@ export function CharacterController({
         {children}
       </group>
       <AirCollision />
+      {_debug && character && <VolumeDebug bounding={character} showLine={_debug.showLine} showBox={_debug.showBox} />}
     </CharacterControllerContext.Provider>
   );
 }
