@@ -1,5 +1,5 @@
-import { createPortal, extend, Object3DNode, Stages, useThree, useUpdate } from '@react-three/fiber';
-import { BoundingVolume } from 'character/bounding-volume/use-bounding-volume';
+import { Color, createPortal, extend, Object3DNode, Stages, useThree, useUpdate } from '@react-three/fiber';
+import { BoundingVolume, Capsule } from 'character/bounding-volume/use-bounding-volume';
 import { useRef, useState } from 'react';
 import * as THREE from 'three';
 import { LineGeometry, LineMaterial, Line2 } from 'three-stdlib';
@@ -18,6 +18,8 @@ type VolumeDebugProps = {
   bounding: BoundingVolume;
   showLine?: boolean;
   showBox?: boolean;
+  showCollider?: boolean;
+  showForce?: boolean;
 };
 
 function createCapsulePoints(radius = 1, length = 1, degrees = 30) {
@@ -54,18 +56,59 @@ function createBoxGeometry() {
   return geometry;
 }
 
-export function VolumeDebug({ bounding, showLine = false, showBox = false }: VolumeDebugProps) {
-  const ref = useRef<THREE.Group>(null!);
+function CapsuleLine({ capsule, color = 'yellow' }: { capsule: Capsule; color?: Color }) {
+  return (
+    <>
+      <line2 geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.length))}>
+        <lineMaterial attach="material" color={color} linewidth={0.002} />
+      </line2>
+      <line2
+        rotation={[0, Math.PI / 2, 0]}
+        geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.length))}>
+        <lineMaterial color={color} linewidth={0.002} />
+      </line2>
+      <line2
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, capsule.length / 2, 0]}
+        geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, 0))}>
+        <lineMaterial color={color} linewidth={0.002} />
+      </line2>
+      <line2
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, -capsule.length / 2, 0]}
+        geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, 0))}>
+        <lineMaterial color={color} linewidth={0.002} />
+      </line2>
+    </>
+  );
+}
+
+export function VolumeDebug({
+  bounding,
+  showLine = false,
+  showBox = false,
+  showCollider = true,
+  showForce = false,
+}: VolumeDebugProps) {
+  const colliderRef = useRef<THREE.Group>(null!);
+  const forceRef = useRef<THREE.Group>(null!);
   const boxRef = useRef<THREE.LineSegments>(null!);
   const [vec] = useState(() => new THREE.Vector3());
+  const [forceCapsule] = useState<Capsule>({ ...bounding.boundingCapsule });
   const scene = useThree((state) => state.scene);
 
   useUpdate(() => {
+    if (showForce) {
+      bounding.boundingBox.getCenter(vec);
+      forceRef.current.position.copy(vec);
+    }
+
+    bounding.updateMatrixWorld();
+    bounding.computeBoundingVolume();
     bounding.boundingBox.getCenter(vec);
-    ref.current.position.copy(vec);
+    colliderRef.current.position.copy(vec);
 
     // Update bounding box.
-
     if (showBox) {
       const min = bounding.boundingBox.min;
       const max = bounding.boundingBox.max;
@@ -108,33 +151,16 @@ export function VolumeDebug({ bounding, showLine = false, showBox = false }: Vol
     <>
       {createPortal(
         <>
-          <group ref={ref}>
+          {/* Force visualization */}
+          {showForce && (
+            <group ref={forceRef}>
+              <CapsuleLine capsule={forceCapsule} color="cyan" />
+            </group>
+          )}
+
+          <group ref={colliderRef}>
             {/* Capsule collider visualization */}
-            <line2
-              geometry={new LineGeometry().setPositions(
-                createCapsulePoints(bounding.boundingCapsule.radius, bounding.boundingCapsule.length),
-              )}>
-              <lineMaterial attach="material" color={'yellow'} linewidth={0.002} />
-            </line2>
-            <line2
-              rotation={[0, Math.PI / 2, 0]}
-              geometry={new LineGeometry().setPositions(
-                createCapsulePoints(bounding.boundingCapsule.radius, bounding.boundingCapsule.length),
-              )}>
-              <lineMaterial color={'yellow'} linewidth={0.002} />
-            </line2>
-            <line2
-              rotation={[Math.PI / 2, 0, 0]}
-              position={[0, bounding.boundingCapsule.length / 2, 0]}
-              geometry={new LineGeometry().setPositions(createCapsulePoints(bounding.boundingCapsule.radius, 0))}>
-              <lineMaterial color={'yellow'} linewidth={0.002} />
-            </line2>
-            <line2
-              rotation={[Math.PI / 2, 0, 0]}
-              position={[0, -bounding.boundingCapsule.length / 2, 0]}
-              geometry={new LineGeometry().setPositions(createCapsulePoints(bounding.boundingCapsule.radius, 0))}>
-              <lineMaterial color={'yellow'} linewidth={0.002} />
-            </line2>
+            {showCollider && <CapsuleLine capsule={bounding.boundingCapsule} />}
 
             {/* Collision line visualization */}
             {showLine && (

@@ -224,7 +224,14 @@ export function CharacterController({
         {children}
       </group>
       <AirCollision />
-      {_debug && character && <VolumeDebug bounding={character} showLine={_debug.showLine} showBox={_debug.showBox} />}
+      {_debug && character && (
+        <VolumeDebug
+          bounding={character}
+          showCollider={_debug.showCollider}
+          showLine={_debug.showLine}
+          showBox={_debug.showBox}
+        />
+      )}
     </CharacterControllerContext.Provider>
   );
 }
