@@ -2,15 +2,17 @@ import { Color, createPortal, extend, Object3DNode, Stages, useThree, useUpdate 
 import { BoundingVolume, Capsule } from 'character/bounding-volume/use-bounding-volume';
 import { MutableRefObject, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Line as LineThree } from 'three';
 import { LineGeometry, LineMaterial, Line2 } from 'three-stdlib';
 
-extend({ Line2, LineGeometry, LineMaterial });
+extend({ Line2, LineGeometry, LineMaterial, LineThree });
 
 declare module '@react-three/fiber' {
   interface ThreeElements {
     lineGeometry: Object3DNode<LineGeometry, typeof LineGeometry>;
     lineMaterial: Object3DNode<LineMaterial, typeof LineMaterial>;
     line2: Object3DNode<Line2, typeof Line2>;
+    lineThree: Object3DNode<LineThree, typeof LineThree>;
   }
 }
 
@@ -165,14 +167,13 @@ export function VolumeDebug({
 
             {/* Collision line visualization */}
             {showLine && (
-              <line
-                // @ts-ignore. TS is confused and thinks this is an svg line.
+              <lineThree
                 geometry={new THREE.BufferGeometry().setFromPoints([
                   bounding.boundingCapsule.line.start,
                   bounding.boundingCapsule.line.end,
                 ])}>
-                <lineBasicMaterial color={'red'} />
-              </line>
+                <lineBasicMaterial color={'cyan'} depthTest={false} />
+              </lineThree>
             )}
           </group>
 
