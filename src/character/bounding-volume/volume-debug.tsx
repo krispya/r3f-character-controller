@@ -96,23 +96,23 @@ function updateBox(box: THREE.Box3, boxRef: MutableRefObject<THREE.LineSegments>
 function CapsuleLine({ capsule, color = 'yellow' }: { capsule: Capsule; color?: Color }) {
   return (
     <>
-      <line2 geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.length))}>
+      <line2 geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.height))}>
         <lineMaterial attach="material" color={color} linewidth={0.002} />
       </line2>
       <line2
         rotation={[0, Math.PI / 2, 0]}
-        geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.length))}>
+        geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, capsule.height))}>
         <lineMaterial color={color} linewidth={0.002} />
       </line2>
       <line2
         rotation={[Math.PI / 2, 0, 0]}
-        position={[0, capsule.length / 2, 0]}
+        position={[0, capsule.height / 2, 0]}
         geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, 0))}>
         <lineMaterial color={color} linewidth={0.002} />
       </line2>
       <line2
         rotation={[Math.PI / 2, 0, 0]}
-        position={[0, -capsule.length / 2, 0]}
+        position={[0, -capsule.height / 2, 0]}
         geometry={new LineGeometry().setPositions(createCapsulePoints(capsule.radius, 0))}>
         <lineMaterial color={color} linewidth={0.002} />
       </line2>

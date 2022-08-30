@@ -2,7 +2,7 @@ import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCollider } from 'collider/stores/collider-store';
-import { useBoundingVolume } from './bounding-volume/use-bounding-volume';
+import { CapsuleConfig, useBoundingVolume } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
@@ -17,6 +17,7 @@ export type CharacterControllerProps = {
   position?: Vector3;
   iterations?: number;
   groundDetectionOffset?: number;
+  capsule?: CapsuleConfig;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -30,6 +31,7 @@ export function CharacterController({
   position,
   iterations = ITERATIONS,
   groundDetectionOffset = 0.2,
+  capsule = 'auto',
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -83,7 +85,7 @@ export function CharacterController({
   const collider = useCollider((state) => state.collider);
 
   // Build bounding volume. Right now it can only be a capsule.
-  const bounding = useBoundingVolume(meshRef);
+  const bounding = useBoundingVolume(capsule, meshRef);
   useLayoutEffect(() => setCharacter(bounding), [bounding, setCharacter]);
 
   const moveCharacter = useCallback(
@@ -101,7 +103,7 @@ export function CharacterController({
     const { boundingCapsule: capsule } = character;
 
     raycaster.set(character.position, vec.set(0, -1, 0));
-    raycaster.far = capsule.length / 2 + capsule.radius + groundDetectionOffset;
+    raycaster.far = capsule.height / 2 + capsule.radius + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
     res[0]?.face ? groundNormal.copy(res[0].face.normal) : groundNormal.set(0, 0, 0);
@@ -221,7 +223,7 @@ export function CharacterController({
         getGroundNormal,
       }}>
       <group position={position} ref={meshRef}>
-        {children}
+        <group position={capsule === 'auto' ? 0 : capsule.center}>{children}</group>
       </group>
       <AirCollision />
 

@@ -34,8 +34,9 @@ function Game() {
         position={[0, 5, 0]}
         walkSpeed={5}
         airControl={0.5}
+        capsule={{ radius: 0.5 / 2 + 0.1, height: 0.65 / 2, center: [-0.05, 0.05, 0] }}
         debug={{ showBox: true, showCollider: true }}>
-        <Player radius={0.5 / 2} length={0.65 / 2} />
+        <Player radius={0.5 / 2} height={0.65 / 2} />
       </PlayerController>
       <CameraController />
 

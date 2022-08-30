@@ -3,10 +3,10 @@ import * as THREE from 'three';
 
 type PlayerProps = {
   radius: number;
-  length: number;
+  height: number;
 };
 
-export function Player({ radius = 0.5, length = 0.65 }: PlayerProps) {
+export function Player({ radius = 0.5, height: length = 0.65 }: PlayerProps) {
   const playerRef = useRef<THREE.Mesh>(null!);
 
   return (
