@@ -13,7 +13,7 @@ import { VolumeDebug } from './bounding-volume/volume-debug';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
-  debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean };
+  debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean; showForce?: boolean };
   position?: Vector3;
   iterations?: number;
   groundDetectionOffset?: number;
@@ -34,7 +34,8 @@ export function CharacterController({
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
 
-  const _debug = typeof debug === 'boolean' ? { showCollider: true, showLine: false, showBox: false } : debug;
+  const _debug =
+    typeof debug === 'boolean' ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 
   const [store] = useState({
     vec: new THREE.Vector3(),
@@ -170,9 +171,8 @@ export function CharacterController({
 
       character.position.add(deltaVector);
 
-      store.isGrounded = detectGround();
-
       // Set character movement state. We have a cooldown to prevent false positives.
+      store.isGrounded = detectGround();
       if (store.toggle) {
         if (store.isGrounded) fsm.send('WALK');
         if (!store.isGrounded) fsm.send('FALL');
@@ -224,12 +224,14 @@ export function CharacterController({
         {children}
       </group>
       <AirCollision />
-      {_debug && character && (
+
+      {character && _debug && (
         <VolumeDebug
           bounding={character}
           showCollider={_debug.showCollider}
           showLine={_debug.showLine}
           showBox={_debug.showBox}
+          showForce={_debug.showForce}
         />
       )}
     </CharacterControllerContext.Provider>

@@ -1,6 +1,6 @@
 import { Color, createPortal, extend, Object3DNode, Stages, useThree, useUpdate } from '@react-three/fiber';
 import { BoundingVolume, Capsule } from 'character/bounding-volume/use-bounding-volume';
-import { useRef, useState } from 'react';
+import { MutableRefObject, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { LineGeometry, LineMaterial, Line2 } from 'three-stdlib';
 
@@ -56,6 +56,43 @@ function createBoxGeometry() {
   return geometry;
 }
 
+function updateBox(box: THREE.Box3, boxRef: MutableRefObject<THREE.LineSegments>) {
+  const min = box.min;
+  const max = box.max;
+
+  const position = boxRef.current.geometry.attributes.position;
+  const array = position.array as number[];
+
+  array[0] = max.x;
+  array[1] = max.y;
+  array[2] = max.z;
+  array[3] = min.x;
+  array[4] = max.y;
+  array[5] = max.z;
+  array[6] = min.x;
+  array[7] = min.y;
+  array[8] = max.z;
+  array[9] = max.x;
+  array[10] = min.y;
+  array[11] = max.z;
+  array[12] = max.x;
+  array[13] = max.y;
+  array[14] = min.z;
+  array[15] = min.x;
+  array[16] = max.y;
+  array[17] = min.z;
+  array[18] = min.x;
+  array[19] = min.y;
+  array[20] = min.z;
+  array[21] = max.x;
+  array[22] = min.y;
+  array[23] = min.z;
+
+  position.needsUpdate = true;
+
+  boxRef.current.geometry.computeBoundingSphere();
+}
+
 function CapsuleLine({ capsule, color = 'yellow' }: { capsule: Capsule; color?: Color }) {
   return (
     <>
@@ -108,43 +145,7 @@ export function VolumeDebug({
     bounding.boundingBox.getCenter(vec);
     colliderRef.current.position.copy(vec);
 
-    // Update bounding box.
-    if (showBox) {
-      const min = bounding.boundingBox.min;
-      const max = bounding.boundingBox.max;
-
-      const position = boxRef.current.geometry.attributes.position;
-      const array = position.array as number[];
-
-      array[0] = max.x;
-      array[1] = max.y;
-      array[2] = max.z;
-      array[3] = min.x;
-      array[4] = max.y;
-      array[5] = max.z;
-      array[6] = min.x;
-      array[7] = min.y;
-      array[8] = max.z;
-      array[9] = max.x;
-      array[10] = min.y;
-      array[11] = max.z;
-      array[12] = max.x;
-      array[13] = max.y;
-      array[14] = min.z;
-      array[15] = min.x;
-      array[16] = max.y;
-      array[17] = min.z;
-      array[18] = min.x;
-      array[19] = min.y;
-      array[20] = min.z;
-      array[21] = max.x;
-      array[22] = min.y;
-      array[23] = min.z;
-
-      position.needsUpdate = true;
-
-      boxRef.current.geometry.computeBoundingSphere();
-    }
+    if (showBox) updateBox(bounding.boundingBox, boxRef);
   }, Stages.Late);
 
   return (
