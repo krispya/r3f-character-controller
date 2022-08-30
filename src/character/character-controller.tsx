@@ -30,7 +30,7 @@ export function CharacterController({
   debug = false,
   position,
   iterations = ITERATIONS,
-  groundDetectionOffset = 0.2,
+  groundDetectionOffset = 0.1,
   capsule = 'auto',
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
