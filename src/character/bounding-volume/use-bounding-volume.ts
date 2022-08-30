@@ -50,7 +50,8 @@ export function useBoundingVolume(config: CapsuleConfig, ref: React.MutableRefOb
       if (config === 'auto') {
         const capsule = bounding.boundingCapsule;
         capsule.radius = size.x / 2;
-        capsule.height = size.y - capsule.radius * 2;
+        const height = size.y - capsule.radius * 2;
+        capsule.height = height > 0 ? height : 0;
       }
     },
     [bounding.boundingCapsule, config],
