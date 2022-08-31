@@ -10,7 +10,7 @@ import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
-import { quatDamp } from 'utilities/quatDamp';
+import { quatSmoothDamp } from 'utilities/quatDamp';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -223,7 +223,7 @@ export function CharacterController({
     if (direction.length() !== 0) store.angle = Math.atan2(direction.x, direction.z);
     targetQuat.setFromAxisAngle(vec.set(0, 1, 0), store.angle);
 
-    quatDamp(currentQuat, targetQuat, rotateSpeed, delta);
+    quatSmoothDamp(currentQuat, targetQuat, rotateSpeed, delta);
     meshRef.current.quaternion.copy(currentQuat);
   }, Stages.Late);
 
