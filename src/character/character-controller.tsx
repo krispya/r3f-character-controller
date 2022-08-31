@@ -229,13 +229,16 @@ export function CharacterController({
     if (direction.length() !== 0) angle = Math.atan2(direction.x, direction.z);
 
     const dampedAngled = smoothDamp.get(store.prevAngle, angle, delta);
-    console.log(angle, store.prevAngle, dampedAngled);
-
     store.prevAngle = dampedAngled;
 
-    // meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), angle);
     meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), dampedAngled);
   }, Stages.Late);
+
+  // Set rotation order so we don't get gimble locked.
+  useLayoutEffect(() => {
+    if (!meshRef.current) return;
+    meshRef.current.rotation.order = 'YXZ';
+  }, []);
 
   const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
@@ -257,7 +260,7 @@ export function CharacterController({
         getIsFalling,
         getGroundNormal,
       }}>
-      <group position={position} ref={meshRef} rotation-order={'YXZ'}>
+      <group position={position} ref={meshRef}>
         <group position={capsule === 'auto' ? 0 : capsule.center}>{children}</group>
       </group>
 
