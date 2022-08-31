@@ -257,7 +257,7 @@ export function CharacterController({
         getIsFalling,
         getGroundNormal,
       }}>
-      <group position={position} ref={meshRef}>
+      <group position={position} ref={meshRef} rotation-order={'YXZ'}>
         <group position={capsule === 'auto' ? 0 : capsule.center}>{children}</group>
       </group>
 
