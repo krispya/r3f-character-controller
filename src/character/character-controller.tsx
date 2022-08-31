@@ -53,6 +53,7 @@ export function CharacterController({
     isGroundedMovement: false,
     isFalling: false,
     groundNormal: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
   });
 
   // Get movement modifiers.
@@ -117,12 +118,16 @@ export function CharacterController({
   };
 
   const calculateVelocity = () => {
-    const { velocity } = store;
+    const { velocity, direction } = store;
     velocity.set(0, 0, 0);
+    direction.set(0, 0, 0);
 
     for (const modifier of modifiers) {
       velocity.add(modifier.value);
-      // console.log(modifier.name, modifier.value.y);
+      if (modifier.name === 'walking') {
+        direction.add(modifier.value);
+      }
+      direction.normalize();
     }
   };
 
@@ -202,6 +207,13 @@ export function CharacterController({
     syncMeshToBoundingVolume();
   }, Stages.Update);
 
+  useUpdate(() => {
+    // if (!meshRef.current || !character) return;
+    // const { direction, vec } = store;
+    // const angle = Math.atan2(direction.x, direction.z);
+    // meshRef.current.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+  }, Stages.Late);
+
   const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
@@ -225,6 +237,7 @@ export function CharacterController({
       <group position={position} ref={meshRef}>
         <group position={capsule === 'auto' ? 0 : capsule.center}>{children}</group>
       </group>
+
       <AirCollision />
 
       {character && _debug && (

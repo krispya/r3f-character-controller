@@ -2,13 +2,14 @@ import './app.css';
 import { Canvas } from '@react-three/fiber';
 import { StrictMode, Suspense } from 'react';
 import { Controller } from 'controls/controller';
-import { Player } from 'test-assets/player';
+// import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
 import { Terrain } from 'test-assets/terrain';
 import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 import { PlayerController } from 'player/player-controller';
+import { MushroomBoi } from 'test-assets/mushroom-boi';
 // import { SimplePlane } from 'test-assets/simple-plane';
 // import { LowPolyIslands } from 'test-assets/low-poly-island';
 
@@ -34,9 +35,9 @@ function Game() {
         position={[0, 5, 0]}
         walkSpeed={5}
         airControl={0.5}
-        capsule={{ radius: 0.5 / 2 + 0.1, height: 0.65 / 2, center: [-0.05, 0.05, 0] }}
+        capsule={{ radius: 0.27 }}
         debug={{ showBox: true, showCollider: true }}>
-        <Player radius={0.5 / 2} height={0.65 / 2} />
+        <MushroomBoi scale={0.25} position={[0, 0, 0]} />
       </PlayerController>
       <CameraController />
 
