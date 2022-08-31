@@ -1,5 +1,5 @@
 import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCollider } from 'collider/stores/collider-store';
 import { CapsuleConfig, useBoundingVolume } from './bounding-volume/use-bounding-volume';
@@ -10,7 +10,7 @@ import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
-import { SmoothDamp } from '@gsimone/smoothdamp';
+import { quatDamp } from 'utilities/quatDamp';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -34,7 +34,7 @@ export function CharacterController({
   iterations = ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
-  rotateSpeed = 0.1,
+  rotateSpeed = 2,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -45,7 +45,6 @@ export function CharacterController({
   const [store] = useState({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
-    smoothDamp: new SmoothDamp(rotateSpeed, 10),
     deltaVector: new THREE.Vector3(),
     velocity: new THREE.Vector3(),
     box: new THREE.Box3(),
@@ -58,13 +57,10 @@ export function CharacterController({
     isFalling: false,
     groundNormal: new THREE.Vector3(),
     direction: new THREE.Vector3(),
-    prevAngle: 0,
+    angle: 0,
+    currentQuat: new THREE.Quaternion(),
+    targetQuat: new THREE.Quaternion(),
   });
-
-  // Rebuild SmoothDamp when rotateSpeed changes.
-  useEffect(() => {
-    store.smoothDamp = new SmoothDamp(rotateSpeed, 10);
-  }, [rotateSpeed, store]);
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
@@ -222,16 +218,13 @@ export function CharacterController({
   // Rotate the mesh to point in the direction of movement.
   useUpdate((_, delta) => {
     if (!meshRef.current || !character) return;
-    const { direction, smoothDamp, vec } = store;
+    const { direction, vec, currentQuat, targetQuat } = store;
 
-    let angle = store.prevAngle;
+    if (direction.length() !== 0) store.angle = Math.atan2(direction.x, direction.z);
+    targetQuat.setFromAxisAngle(vec.set(0, 1, 0), store.angle);
 
-    if (direction.length() !== 0) angle = Math.atan2(direction.x, direction.z);
-
-    const dampedAngled = smoothDamp.get(store.prevAngle, angle, delta);
-    store.prevAngle = dampedAngled;
-
-    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), dampedAngled);
+    quatDamp(currentQuat, targetQuat, rotateSpeed, delta);
+    meshRef.current.quaternion.copy(currentQuat);
   }, Stages.Late);
 
   const getVelocity = useCallback(() => store.velocity, [store]);
