@@ -1,5 +1,5 @@
 import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCollider } from 'collider/stores/collider-store';
 import { CapsuleConfig, useBoundingVolume } from './bounding-volume/use-bounding-volume';
@@ -10,6 +10,7 @@ import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
+import { SmoothDamp } from '@gsimone/smoothdamp';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export type CharacterControllerProps = {
   iterations?: number;
   groundDetectionOffset?: number;
   capsule?: CapsuleConfig;
+  rotateSpeed?: number;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -32,6 +34,7 @@ export function CharacterController({
   iterations = ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
+  rotateSpeed = 0.1,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -42,6 +45,7 @@ export function CharacterController({
   const [store] = useState({
     vec: new THREE.Vector3(),
     vec2: new THREE.Vector3(),
+    smoothDamp: new SmoothDamp(rotateSpeed, 10),
     deltaVector: new THREE.Vector3(),
     velocity: new THREE.Vector3(),
     box: new THREE.Box3(),
@@ -54,7 +58,13 @@ export function CharacterController({
     isFalling: false,
     groundNormal: new THREE.Vector3(),
     direction: new THREE.Vector3(),
+    prevAngle: 0,
   });
+
+  // Rebuild SmoothDamp when rotateSpeed changes.
+  useEffect(() => {
+    store.smoothDamp = new SmoothDamp(rotateSpeed, 10);
+  }, [rotateSpeed, store]);
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
@@ -124,11 +134,13 @@ export function CharacterController({
 
     for (const modifier of modifiers) {
       velocity.add(modifier.value);
-      if (modifier.name === 'walking') {
+
+      if (modifier.name === 'walking' || modifier.name === 'falling') {
         direction.add(modifier.value);
       }
-      direction.normalize();
     }
+
+    direction.normalize().negate();
   };
 
   // Applies forces to the character, then checks for collision.
@@ -202,16 +214,27 @@ export function CharacterController({
     }
   }, Stages.Fixed);
 
-  // Finally, sync mesh so movement is visible.
+  // Sync mesh so movement is visible.
   useUpdate(() => {
     syncMeshToBoundingVolume();
   }, Stages.Update);
 
-  useUpdate(() => {
-    // if (!meshRef.current || !character) return;
-    // const { direction, vec } = store;
-    // const angle = Math.atan2(direction.x, direction.z);
-    // meshRef.current.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+  // Rotate the mesh to point in the direction of movement.
+  useUpdate((_, delta) => {
+    if (!meshRef.current || !character) return;
+    const { direction, smoothDamp, vec } = store;
+
+    let angle = store.prevAngle;
+
+    if (direction.length() !== 0) angle = Math.atan2(direction.x, direction.z);
+
+    const dampedAngled = smoothDamp.get(store.prevAngle, angle, delta);
+    console.log(angle, store.prevAngle, dampedAngled);
+
+    store.prevAngle = dampedAngled;
+
+    // meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), angle);
+    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), dampedAngled);
   }, Stages.Late);
 
   const getVelocity = useCallback(() => store.velocity, [store]);

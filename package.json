@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gsimone/smoothdamp": "^0.1.0",
     "@hmans/controlfreak": "^0.2.0",
     "@react-three/drei": "^9.13.0",
     "@react-three/fiber": "^9.0.0-alpha.1",

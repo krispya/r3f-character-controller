@@ -73,7 +73,8 @@ export function PlayerController({
       debug={props.debug}
       iterations={props.iterations}
       groundDetectionOffset={props.groundDetectionOffset}
-      capsule={props.capsule}>
+      capsule={props.capsule}
+      rotateSpeed={props.rotateSpeed}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
