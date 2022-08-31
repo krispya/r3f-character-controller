@@ -234,12 +234,6 @@ export function CharacterController({
     meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), dampedAngled);
   }, Stages.Late);
 
-  // Set rotation order so we don't get gimble locked.
-  useLayoutEffect(() => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.order = 'YXZ';
-  }, []);
-
   const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
