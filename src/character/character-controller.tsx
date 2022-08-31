@@ -34,7 +34,7 @@ export function CharacterController({
   iterations = ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
-  rotateSpeed = 2,
+  rotateSpeed = 0.2,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);

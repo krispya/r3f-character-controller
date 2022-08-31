@@ -36,7 +36,7 @@ function Game() {
         walkSpeed={5}
         airControl={0.5}
         capsule={{ radius: 0.27 }}
-        rotateSpeed={3}
+        rotateSpeed={0.2}
         debug={{ showBox: true, showCollider: true }}>
         <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} />
       </PlayerController>
