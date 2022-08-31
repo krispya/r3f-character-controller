@@ -220,8 +220,12 @@ export function CharacterController({
     if (!meshRef.current || !character) return;
     const { direction, vec, currentQuat, targetQuat } = store;
 
-    if (direction.length() !== 0) store.angle = Math.atan2(direction.x, direction.z);
-    targetQuat.setFromAxisAngle(vec.set(0, 1, 0), store.angle);
+    if (direction.length() !== 0) {
+      store.angle = Math.atan2(direction.x, direction.z);
+      targetQuat.setFromAxisAngle(vec.set(0, 1, 0), store.angle);
+    } else {
+      targetQuat.copy(currentQuat);
+    }
 
     quatSmoothDamp(currentQuat, targetQuat, rotateSpeed, delta);
     meshRef.current.quaternion.copy(currentQuat);
