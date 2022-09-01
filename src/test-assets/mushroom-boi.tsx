@@ -37,28 +37,38 @@ export function MushroomBoi(props: JSX.IntrinsicElements['group']) {
 
   return (
     <group ref={group} {...props} dispose={null}>
-      <pointLight intensity={1.2} color="#38e4ed" />
+      <pointLight position={[0, -0.5, 0]} intensity={1.2} color="#38e4ed" castShadow shadow-mapSize={[256, 256]}>
+        <orthographicCamera attach="shadow-camera" args={[-10, 10, -10, 10]} />
+      </pointLight>
       <group name="Armature" position={[0, -1, 0]}>
         <primitive object={nodes.Bone} />
         <skinnedMesh
+          castShadow
+          receiveShadow
           name="Cylinder"
           geometry={nodes.Cylinder.geometry}
           material={materials['Material.008']}
           skeleton={nodes.Cylinder.skeleton}
         />
         <skinnedMesh
+          castShadow
+          receiveShadow
           name="Plane"
           geometry={nodes.Plane.geometry}
           material={materials['Material.007']}
           skeleton={nodes.Plane.skeleton}
         />
         <skinnedMesh
+          castShadow
+          receiveShadow
           name="Sphere"
           geometry={nodes.Sphere.geometry}
           material={materials['Material.006']}
           skeleton={nodes.Sphere.skeleton}
         />
         <skinnedMesh
+          castShadow
+          receiveShadow
           name="Sphere001"
           geometry={nodes.Sphere001.geometry}
           material={materials['Material.005']}

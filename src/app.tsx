@@ -37,23 +37,24 @@ function Game() {
         airControl={0.5}
         capsule={{ radius: 0.27 }}
         rotateSpeed={0.2}
-        debug={{ showBox: true, showCollider: true }}>
+        // debug={{ showBox: true, showCollider: true }}
+      >
         <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} />
       </PlayerController>
       <CameraController />
 
       <Space />
-      <ambientLight intensity={0.3} />
+      <ambientLight intensity={0.4} />
       <hemisphereLight intensity={0.95} color="#eacb6e" groundColor="red" />
       <spotLight
         castShadow
-        color="orange"
-        intensity={1000}
+        color="#edbf6f"
+        intensity={100}
         position={[80, 50, -40]}
         angle={0.25}
         penumbra={1}
-        shadow-mapSize={[512, 512]}
-        shadow-bias={0.00005}
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.00001}
       />
     </Suspense>
   );

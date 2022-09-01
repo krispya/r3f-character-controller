@@ -39,8 +39,7 @@ export function CharacterController({
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
 
-  const _debug =
-    typeof debug === 'boolean' ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
+  const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 
   const [store] = useState({
     vec: new THREE.Vector3(),

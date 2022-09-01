@@ -11,8 +11,11 @@ export function Terrain(props: JSX.IntrinsicElements['group']) {
   useEffect(() => {
     for (const material in materials) {
       materials[material].envMapIntensity = 0.3;
+      materials[material].normalMap = null;
     }
   }, [materials]);
+
+  console.log(materials['Material #44']);
 
   return (
     <group {...props} dispose={null}>
