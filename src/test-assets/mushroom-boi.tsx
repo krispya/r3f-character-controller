@@ -37,7 +37,7 @@ export function MushroomBoi(props: JSX.IntrinsicElements['group']) {
 
   return (
     <group ref={group} {...props} dispose={null}>
-      <pointLight position={[0, -0.5, 0]} intensity={1.2} color="#38e4ed" castShadow shadow-mapSize={[256, 256]}>
+      <pointLight position={[0, -0.5, 0]} intensity={1.2} color="#38e4ed" shadow-mapSize={[256, 256]}>
         <orthographicCamera attach="shadow-camera" args={[-10, 10, -10, 10]} />
       </pointLight>
       <group name="Armature" position={[0, -1, 0]}>

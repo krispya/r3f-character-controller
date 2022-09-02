@@ -15,8 +15,6 @@ export function Terrain(props: JSX.IntrinsicElements['group']) {
     }
   }, [materials]);
 
-  console.log(materials['Material #44']);
-
   return (
     <group {...props} dispose={null}>
       <group position={[-0.0473287, -2.02306247, -0.05932176]} scale={0.0254} userData={{ name: 'Level' }}>
