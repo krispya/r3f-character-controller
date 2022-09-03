@@ -10,7 +10,7 @@ import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
-import { quatSmoothDamp } from 'utilities/quatDamp';
+import { SmoothDamp } from '@gsimone/smoothdamp';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -19,7 +19,7 @@ export type CharacterControllerProps = {
   iterations?: number;
   groundDetectionOffset?: number;
   capsule?: CapsuleConfig;
-  rotateSpeed?: number;
+  rotateTime?: number;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -34,7 +34,7 @@ export function CharacterController({
   iterations = ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
-  rotateSpeed = 0.2,
+  rotateTime: rotateSpeed = 0.1,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -57,8 +57,10 @@ export function CharacterController({
     groundNormal: new THREE.Vector3(),
     direction: new THREE.Vector3(),
     angle: 0,
+    current: 0,
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
+    smoothDamp: new SmoothDamp(rotateSpeed, 100),
   });
 
   // Get movement modifiers.
@@ -217,17 +219,28 @@ export function CharacterController({
   // Rotate the mesh to point in the direction of movement.
   useUpdate((_, delta) => {
     if (!meshRef.current || !character) return;
-    const { direction, vec, currentQuat, targetQuat } = store;
+    const { direction, vec, smoothDamp } = store;
+    smoothDamp.smoothTime = rotateSpeed;
 
     if (direction.length() !== 0) {
       store.angle = Math.atan2(direction.x, direction.z);
-      targetQuat.setFromAxisAngle(vec.set(0, 1, 0), store.angle);
     } else {
-      targetQuat.copy(currentQuat);
+      store.angle = store.current;
     }
 
-    quatSmoothDamp(currentQuat, targetQuat, rotateSpeed, delta);
-    meshRef.current.quaternion.copy(currentQuat);
+    const angleDelta = store.angle - store.current;
+    // If the angle delta is greater than PI radians, we need to rotate the other way.
+    // This stops the character from rotating the long way around.
+    if (Math.abs(angleDelta) > Math.PI) {
+      store.angle = store.angle - Math.sign(angleDelta) * Math.PI * 2;
+    }
+
+    store.current = smoothDamp.get(store.current, store.angle, delta);
+    // Make sure our character's angle never exceeds 2PI radians.
+    if (store.current > Math.PI) store.current -= Math.PI * 2;
+    if (store.current < -Math.PI) store.current += Math.PI * 2;
+
+    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.current);
   }, Stages.Late);
 
   const getVelocity = useCallback(() => store.velocity, [store]);
