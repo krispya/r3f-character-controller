@@ -217,6 +217,7 @@ export function CharacterController({
   }, Stages.Update);
 
   // Rotate the mesh to point in the direction of movement.
+  // TODO: Try using a quaternion slerp instead.
   useUpdate((_, delta) => {
     if (!meshRef.current || !character) return;
     const { direction, vec, smoothDamp } = store;
