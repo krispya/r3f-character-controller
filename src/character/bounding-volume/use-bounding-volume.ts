@@ -71,8 +71,6 @@ export function useBoundingVolume(config: CapsuleConfig, ref: React.MutableRefOb
 
     capsule.line.end.copy(new THREE.Vector3(0, -offset, 0));
     capsule.line.start.copy(new THREE.Vector3(0, offset, 0));
-
-    bounding.applyMatrix4(ref.current.matrix);
   }, [bounding, config, ref]);
 
   return bounding;
