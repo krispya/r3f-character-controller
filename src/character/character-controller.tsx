@@ -56,8 +56,8 @@ export function CharacterController({
     isFalling: false,
     groundNormal: new THREE.Vector3(),
     direction: new THREE.Vector3(),
-    angle: 0,
-    current: 0,
+    targetAngle: 0,
+    currentAngle: 0,
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
     smoothDamp: new SmoothDamp(rotateSpeed, 100),
@@ -223,24 +223,24 @@ export function CharacterController({
     smoothDamp.smoothTime = rotateSpeed;
 
     if (direction.length() !== 0) {
-      store.angle = Math.atan2(direction.x, direction.z);
+      store.targetAngle = Math.atan2(direction.x, direction.z);
     } else {
-      store.angle = store.current;
+      store.targetAngle = store.currentAngle;
     }
 
-    const angleDelta = store.angle - store.current;
+    const angleDelta = store.targetAngle - store.currentAngle;
     // If the angle delta is greater than PI radians, we need to rotate the other way.
     // This stops the character from rotating the long way around.
     if (Math.abs(angleDelta) > Math.PI) {
-      store.angle = store.angle - Math.sign(angleDelta) * Math.PI * 2;
+      store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
     }
 
-    store.current = smoothDamp.get(store.current, store.angle, delta);
+    store.currentAngle = smoothDamp.get(store.currentAngle, store.targetAngle, delta);
     // Make sure our character's angle never exceeds 2PI radians.
-    if (store.current > Math.PI) store.current -= Math.PI * 2;
-    if (store.current < -Math.PI) store.current += Math.PI * 2;
+    if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
+    if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
 
-    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.current);
+    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.currentAngle);
   }, Stages.Late);
 
   const getVelocity = useCallback(() => store.velocity, [store]);
