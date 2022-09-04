@@ -1,7 +1,7 @@
 import './app.css';
 import { Canvas } from '@react-three/fiber';
 import { StrictMode, Suspense } from 'react';
-import { Controller } from 'controls/controller';
+import { InputManager } from 'input/input-manager';
 // import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
@@ -16,11 +16,26 @@ import { MushroomBoi } from 'test-assets/mushroom-boi';
 function Game() {
   return (
     <Suspense>
-      <Controller
-        devices="keyboard"
-        actions={({ keyboard }) => ({
-          move: { type: 'vector', steps: [keyboard?.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD')] },
-          jump: { type: 'boolean', steps: [keyboard?.whenKeyPressed('Space')] },
+      <InputManager
+        devices={['keyboard', 'gamepad']}
+        actions={({ keyboard, gamepad, processors }) => ({
+          move: {
+            type: 'vector',
+            steps: [
+              keyboard?.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD'),
+              gamepad?.axisVector(0, 1),
+              processors?.deadzone(0.15),
+            ],
+          },
+          look: {
+            type: 'vector',
+            steps: [
+              keyboard?.compositeVector('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'),
+              gamepad?.axisVector(2, 3),
+              processors?.deadzone(0.15),
+            ],
+          },
+          jump: { type: 'boolean', steps: [keyboard?.whenKeyPressed('Space'), gamepad?.whenButtonPressed(0)] },
         })}
       />
 

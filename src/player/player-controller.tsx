@@ -6,7 +6,7 @@ import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';
 import { Walking, WalkingProps, WALK_SPEED } from 'character/modifiers/walking';
 import { useCharacterController } from 'character/stores/character-store';
-import { useControls } from 'controls/controller';
+import { useInputs } from 'input/input-manager';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 
@@ -30,11 +30,12 @@ export function PlayerController({
     forward: new THREE.Vector3(),
     right: new THREE.Vector3(),
     walk: new THREE.Vector3(),
+    move: new THREE.Vector2(),
   }));
 
   const character = useCharacterController((state) => state.character);
   const setTarget = useCameraController((state) => state.setTarget);
-  const controls = useControls();
+  const inputs = useInputs();
 
   useEffect(() => setTarget(character), [character, setTarget]);
 
@@ -53,8 +54,12 @@ export function PlayerController({
 
   // Update the player's movement vector based on camera direction.
   useUpdate((state) => {
-    const { move } = controls;
-    const { forward, right, walk } = store;
+    const { move: moveInput } = inputs;
+    const { forward, right, walk, move } = store;
+
+    move.set(moveInput.x, moveInput.y);
+    const magnitude = Math.min(move.length(), 1);
+    move.normalize();
 
     forward.set(0, 0, -1).applyQuaternion(state.camera.quaternion);
     forward.normalize().multiplyScalar(move.y);
@@ -64,7 +69,7 @@ export function PlayerController({
     right.normalize().multiplyScalar(move.x);
     right.y = 0;
 
-    walk.addVectors(forward, right);
+    walk.addVectors(forward, right).multiplyScalar(magnitude);
   }, Stages.Early);
 
   return (
@@ -78,7 +83,7 @@ export function PlayerController({
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
-      <Jump jump={() => controls.jump} jumpSpeed={props.jumpSpeed} />
+      <Jump jump={() => inputs.jump} jumpSpeed={props.jumpSpeed} />
       <Gravity
         gravity={props.gravity}
         groundedGravity={props.groundedGravity}
