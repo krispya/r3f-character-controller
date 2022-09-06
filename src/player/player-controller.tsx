@@ -6,7 +6,7 @@ import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';
 import { Walking, WalkingProps, WALK_SPEED } from 'character/modifiers/walking';
 import { useCharacterController } from 'character/stores/character-store';
-import { useInputs } from 'input/input-manager';
+import { useInputs } from 'input/input-controller';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 

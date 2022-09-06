@@ -1,7 +1,7 @@
 import './app.css';
 import { Canvas } from '@react-three/fiber';
 import { StrictMode, Suspense } from 'react';
-import { InputManager } from 'input/input-manager';
+import { InputController } from 'input/input-controller';
 // import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
@@ -16,7 +16,7 @@ import { MushroomBoi } from 'test-assets/mushroom-boi';
 function Game() {
   return (
     <Suspense>
-      <InputManager
+      <InputController
         devices={['keyboard', 'gamepad']}
         actions={({ keyboard, gamepad, processors }) => ({
           move: {
@@ -47,7 +47,7 @@ function Game() {
       </Collider>
 
       <PlayerController
-        position={[0, 5, 0]}
+        position={[0, 4, 0]}
         walkSpeed={5}
         airControl={0.5}
         capsule={{ radius: 0.27 }}

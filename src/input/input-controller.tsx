@@ -23,7 +23,7 @@ type ActionDevices = {
   processors?: typeof processors;
 };
 
-type InputManagerProps = {
+type InputControllerProps = {
   devices?: Devices | Devices[];
   actions: (devices: ActionDevices) => {
     [key: string]: {
@@ -38,11 +38,11 @@ const useStore = create<ControllerState>(() => ({
   controller: new CFController(),
 }));
 
-export function InputManager({
+export function InputController({
   devices = ['keyboard', 'gamepad', 'touch'],
   actions: createActions,
   pause = false,
-}: InputManagerProps) {
+}: InputControllerProps) {
   const deviceMap = useRef<Map<string, KeyboardDevice | GamepadDevice | TouchDevice>>(new Map());
   const controller = useStore((state) => state.controller);
 
