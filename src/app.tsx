@@ -40,7 +40,7 @@ function Game() {
       />
 
       <Fauna />
-      <Collider simplify={0.35}>
+      <Collider simplify={0.35} debug>
         <Terrain />
         {/* <SimplePlane /> */}
         {/* <LowPolyIslands /> */}
