@@ -57,6 +57,7 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
         geometries.push(cloned);
       }
     });
+
     store.prevBoxMap = { ...store.boxMap };
 
     // Merge the geometry.
@@ -80,6 +81,7 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
     collider?.geometry.computeBoundsTree();
   }, [buildColliderGeometry, collider?.geometry]);
 
+  // Initialization of BVH collider.
   useEffect(() => {
     if (!ref.current || !store.init) return;
 
@@ -104,6 +106,7 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
     store.init = false;
   }, [buildColliderGeometry, setCollider, store]);
 
+  // Initialization of BVH visualizer.
   useEffect(() => {
     if (collider) {
       const visualizer = new MeshBVHVisualizer(collider, 10);
