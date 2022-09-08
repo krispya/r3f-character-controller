@@ -9,7 +9,7 @@ export function Fauna(props: JSX.IntrinsicElements['group']) {
   return (
     <group {...props} dispose={null}>
       <group
-        position={[2.49908357, -1.63235712, 0.455537408]}
+        position={[2.49908357, -1.63235712, 0.355537408]}
         rotation={[Math.PI, -0.4054188, Math.PI]}
         scale={[0.03400108, 0.03400107, 0.03400108]}
         userData={{ name: 'Fauna' }}>
