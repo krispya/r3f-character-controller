@@ -101,14 +101,10 @@ export function InputController({
     }
   }, [controller, createActions]);
 
-  // Start our controller
-  useLayoutEffect(() => {
-    controller.start();
-    return () => controller.stop();
-  }, [controller]);
-
   // Update the controller on an early loop
   useUpdate(() => {
+    // Loop this to work around HMR bug.
+    controller.start();
     if (!pause) controller.update();
   }, Stages.Early);
 

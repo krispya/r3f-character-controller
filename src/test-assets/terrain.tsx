@@ -30,12 +30,6 @@ export function Terrain(props: JSX.IntrinsicElements['group']) {
         <mesh castShadow receiveShadow geometry={nodes.Mesh725_9.geometry} material={materials['Material #42']} />
         <mesh castShadow receiveShadow geometry={nodes.Mesh725_10.geometry} material={materials['Material #44']} />
       </group>
-      <Box args={[4, 0.5, 4]}>
-        <meshStandardMaterial color="white" />
-      </Box>
-      <Box args={[8, 0.25, 4]}>
-        <meshStandardMaterial color="white" />
-      </Box>
     </group>
   );
 }

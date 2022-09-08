@@ -1,8 +1,6 @@
 import './app.css';
 import { Canvas } from '@react-three/fiber';
 import { StrictMode, Suspense } from 'react';
-import { InputController } from 'input/input-controller';
-// import { Player } from 'test-assets/player';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
 import { Terrain } from 'test-assets/terrain';
@@ -10,40 +8,18 @@ import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 import { PlayerController } from 'player/player-controller';
 import { MushroomBoi } from 'test-assets/mushroom-boi';
-// import { SimplePlane } from 'test-assets/simple-plane';
-// import { LowPolyIslands } from 'test-assets/low-poly-island';
+import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
+import { InputSystem } from 'input/input-system';
 
 function Game() {
   return (
     <Suspense>
-      <InputController
-        devices={['keyboard', 'gamepad']}
-        actions={({ keyboard, gamepad, processors }) => ({
-          move: {
-            type: 'vector',
-            steps: [
-              keyboard?.compositeVector('KeyW', 'KeyS', 'KeyA', 'KeyD'),
-              gamepad?.axisVector(0, 1),
-              processors?.deadzone(0.15),
-            ],
-          },
-          look: {
-            type: 'vector',
-            steps: [
-              keyboard?.compositeVector('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'),
-              gamepad?.axisVector(2, 3),
-              processors?.deadzone(0.15),
-            ],
-          },
-          jump: { type: 'boolean', steps: [keyboard?.whenKeyPressed('Space'), gamepad?.whenButtonPressed(0)] },
-        })}
-      />
+      <InputSystem />
 
       <Fauna />
-      <Collider simplify={0.35} debug>
+      <Collider simplify={0.35} autoUpdate>
         <Terrain />
-        {/* <SimplePlane /> */}
-        {/* <LowPolyIslands /> */}
+        <TestExtenstionTerrain />
       </Collider>
 
       <PlayerController

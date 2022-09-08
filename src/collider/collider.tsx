@@ -18,9 +18,15 @@ type ColliderProps = {
   children: React.ReactNode;
   debug?: boolean | { collider?: boolean; bvh?: boolean };
   simplify?: number;
+  autoUpdate?: boolean;
 };
 
-export function Collider({ children, debug = { collider: false, bvh: false }, simplify }: ColliderProps) {
+export function Collider({
+  children,
+  debug = { collider: false, bvh: false },
+  simplify,
+  autoUpdate = false,
+}: ColliderProps) {
   const ref = useRef<THREE.Group>(null!);
   const [collider, setCollider] = useCollider((state) => [state.collider, state.setCollider]);
   const [bvhVisualizer, setBvhVisualizer] = useState<MeshBVHVisualizer | undefined>(undefined);
@@ -28,13 +34,28 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
     init: true,
     boxMap: {} as Record<string, THREE.Box3>,
     prevBoxMap: {} as Record<string, THREE.Box3>,
+    matrixMap: {} as Record<string, THREE.Matrix4>,
+    prevMatrixMap: {} as Record<string, THREE.Matrix4>,
   });
   const _debug = debug === true ? { collider: true, bvh: false } : debug;
 
+  const updateMaps = useCallback(
+    (object: THREE.Object3D) => {
+      if (object instanceof THREE.Group) {
+        store.matrixMap[object.uuid] = object.matrix.clone();
+      }
+      if (object instanceof THREE.Mesh && object.geometry) {
+        if (object.geometry.boundingBox === null) object.geometry.computeBoundingBox();
+        store.boxMap[object.uuid] = object.geometry.boundingBox;
+        store.matrixMap[object.uuid] = object.matrix.clone();
+      }
+    },
+    [store],
+  );
+
   const buildColliderGeometry = useCallback(() => {
     const geometries: THREE.BufferGeometry[] = [];
-    // This is more imporant than it seems. We want to make sure our geometry is centered with the Box3
-    // to avoid floating point precision headaches.
+
     // const box = new THREE.Box3();
     // box.setFromObject(ref.current);
     // box.getCenter(ref.current.position).negate();
@@ -42,10 +63,8 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
 
     // Traverse the child meshes so we can create a merged gemoetry for BVH calculations.
     ref.current.traverse((c) => {
+      if (autoUpdate) updateMaps(c);
       if (c instanceof THREE.Mesh && c.geometry) {
-        // Make sure all bounding boxes are computed.
-        if (c.geometry.boundingBox === null) c.geometry.computeBoundingBox();
-        store.boxMap[c.uuid] = c.geometry.boundingBox;
         const cloned = c.geometry.clone();
         cloned.applyMatrix4(c.matrixWorld);
         // All attributes except position so that the geometry can be safely merged.
@@ -58,7 +77,10 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
       }
     });
 
-    store.prevBoxMap = { ...store.boxMap };
+    if (autoUpdate) {
+      store.prevBoxMap = { ...store.boxMap };
+      store.prevMatrixMap = { ...store.matrixMap };
+    }
 
     // Merge the geometry.
     let merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
@@ -72,7 +94,7 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
     }
 
     return merged;
-  }, [simplify, store]);
+  }, [autoUpdate, simplify, store, updateMaps]);
 
   const rebuildBVH = useCallback(() => {
     const merged = buildColliderGeometry();
@@ -116,17 +138,26 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
 
   // Dispose of the BVH if we unmount.
   useEffect(() => {
-    return () => collider?.geometry.disposeBoundsTree();
-  }, [collider?.geometry]);
+    return () => {
+      if (!collider) return;
+      collider?.geometry.dispose();
+      const material = collider?.material as THREE.Material;
+      material.dispose();
+    };
+  }, [collider]);
 
   useUpdate(() => {
-    if (!collider) return;
+    if (!collider || !autoUpdate) return;
 
     store.boxMap = {};
     ref.current.traverse((c) => {
+      if (c instanceof THREE.Group) {
+        store.matrixMap[c.uuid] = c.matrix.clone();
+      }
       if (c instanceof THREE.Mesh && c.geometry) {
         if (c.geometry.boundingBox === null) c.geometry.computeBoundingBox();
         store.boxMap[c.uuid] = c.geometry.boundingBox;
+        store.matrixMap[c.uuid] = c.matrix.clone();
       }
     });
 
@@ -149,6 +180,19 @@ export function Collider({ children, debug = { collider: false, bvh: false }, si
       break;
     }
 
+    for (const uuid in store.matrixMap) {
+      const current = store.matrixMap[uuid];
+      const prev = store.prevMatrixMap[uuid];
+
+      if (current.equals(prev)) continue;
+
+      console.log('Collider: Matrix changed. Rebuilding BVH.');
+      rebuildBVH();
+      store.prevMatrixMap = { ...store.matrixMap };
+      break;
+    }
+
+    store.prevMatrixMap = { ...store.matrixMap };
     store.prevBoxMap = { ...store.boxMap };
   });
 
