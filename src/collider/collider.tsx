@@ -17,14 +17,14 @@ import { useUpdate } from '@react-three/fiber';
 type ColliderProps = {
   children: React.ReactNode;
   debug?: boolean | { collider?: boolean; bvh?: boolean };
-  simplify?: number;
+  // simplify?: number;
   autoUpdate?: boolean;
 };
 
 export function Collider({
   children,
   debug = { collider: false, bvh: false },
-  simplify,
+  // simplify,
   autoUpdate = false,
 }: ColliderProps) {
   const ref = useRef<THREE.Group>(null!);
@@ -86,6 +86,12 @@ export function Collider({
     collider?.geometry.computeBoundsTree();
   }, [buildColliderGeometry, collider?.geometry]);
 
+  const refitBVH = useCallback(() => {
+    if (!collider) return;
+    store.generator.generate(collider.geometry);
+    collider.geometry.boundsTree?.refit();
+  }, [collider, store.generator]);
+
   // Initialization of BVH collider.
   useEffect(() => {
     if (!ref.current || !store.init) return;
@@ -145,7 +151,6 @@ export function Collider({
     });
 
     if (Object.keys(store.boxMap).length !== Object.keys(store.prevBoxMap).length) {
-      console.log('Collider: Meshes changed. Rebuilding BVH.');
       rebuildBVH();
       store.prevBoxMap = { ...store.boxMap };
       return;
@@ -157,7 +162,6 @@ export function Collider({
 
       if (current.equals(prev)) continue;
 
-      console.log('Collider: Mesh changed. Rebuilding BVH.');
       rebuildBVH();
       store.prevBoxMap = { ...store.boxMap };
       break;
@@ -169,9 +173,7 @@ export function Collider({
 
       if (current.equals(prev)) continue;
 
-      console.log('Collider: Matrix changed. Refitting BVH.');
-      store.generator.generate(collider.geometry);
-      collider.geometry.boundsTree?.refit();
+      refitBVH();
       store.prevMatrixMap = { ...store.matrixMap };
       break;
     }
