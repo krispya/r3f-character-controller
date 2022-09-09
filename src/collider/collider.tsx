@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+// import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { useCollider } from 'collider/stores/collider-store';
 import {
   acceleratedRaycast,
@@ -7,11 +7,11 @@ import {
   disposeBoundsTree,
   MeshBVH,
   MeshBVHVisualizer,
-  SAH,
+  StaticGeometryGenerator,
 } from 'three-mesh-bvh';
 import * as THREE from 'three';
 // @ts-ignore // Using our own SimplifyModifier to fix a bug.
-import { SimplifyModifier } from './SimplifyModifier';
+// import { SimplifyModifier } from './SimplifyModifier';
 import { useUpdate } from '@react-three/fiber';
 
 type ColliderProps = {
@@ -36,6 +36,7 @@ export function Collider({
     prevBoxMap: {} as Record<string, THREE.Box3>,
     matrixMap: {} as Record<string, THREE.Matrix4>,
     prevMatrixMap: {} as Record<string, THREE.Matrix4>,
+    generator: null as unknown as StaticGeometryGenerator,
   });
   const _debug = debug === true ? { collider: true, bvh: false } : debug;
 
@@ -54,27 +55,10 @@ export function Collider({
   );
 
   const buildColliderGeometry = useCallback(() => {
-    const geometries: THREE.BufferGeometry[] = [];
-
-    // const box = new THREE.Box3();
-    // box.setFromObject(ref.current);
-    // box.getCenter(ref.current.position).negate();
     ref.current.updateMatrixWorld();
 
-    // Traverse the child meshes so we can create a merged gemoetry for BVH calculations.
     ref.current.traverse((c) => {
       if (autoUpdate) updateMaps(c);
-      if (c instanceof THREE.Mesh && c.geometry) {
-        const cloned = c.geometry.clone();
-        cloned.applyMatrix4(c.matrixWorld);
-        // All attributes except position so that the geometry can be safely merged.
-        for (const key in cloned.attributes) {
-          if (key !== 'position') {
-            cloned.deleteAttribute(key);
-          }
-        }
-        geometries.push(cloned);
-      }
     });
 
     if (autoUpdate) {
@@ -82,24 +66,23 @@ export function Collider({
       store.prevMatrixMap = { ...store.matrixMap };
     }
 
-    // Merge the geometry.
-    let merged = BufferGeometryUtils.mergeBufferGeometries(geometries, false);
-    merged = BufferGeometryUtils.mergeVertices(merged);
+    store.generator = new StaticGeometryGenerator(ref.current);
+    const geometry = store.generator.generate();
 
     // Simplify the geometry for better performance.
-    if (simplify) {
-      const modifier = new SimplifyModifier();
-      const count = Math.floor(merged.attributes.position.count * simplify);
-      merged = modifier.modify(merged, count);
-    }
+    // if (simplify) {
+    //   const modifier = new SimplifyModifier();
+    //   const count = Math.floor(merged.attributes.position.count * simplify);
+    //   merged = modifier.modify(merged, count);
+    // }
 
-    return merged;
-  }, [autoUpdate, simplify, store, updateMaps]);
+    return geometry;
+  }, [autoUpdate, store, updateMaps]);
 
   const rebuildBVH = useCallback(() => {
-    const merged = buildColliderGeometry();
+    const geometry = buildColliderGeometry();
     collider?.geometry.dispose();
-    collider?.geometry.copy(merged);
+    collider?.geometry.copy(geometry);
     collider?.geometry.computeBoundsTree();
   }, [buildColliderGeometry, collider?.geometry]);
 
@@ -107,11 +90,11 @@ export function Collider({
   useEffect(() => {
     if (!ref.current || !store.init) return;
 
-    const merged = buildColliderGeometry();
-    merged.boundsTree = new MeshBVH(merged, { strategy: SAH });
+    const geometry = buildColliderGeometry();
+    geometry.boundsTree = new MeshBVH(geometry);
 
     const collider = new THREE.Mesh(
-      merged,
+      geometry,
       new THREE.MeshBasicMaterial({
         wireframe: true,
         transparent: true,
@@ -186,8 +169,9 @@ export function Collider({
 
       if (current.equals(prev)) continue;
 
-      console.log('Collider: Matrix changed. Rebuilding BVH.');
-      rebuildBVH();
+      console.log('Collider: Matrix changed. Refitting BVH.');
+      store.generator.generate(collider.geometry);
+      collider.geometry.boundsTree?.refit();
       store.prevMatrixMap = { ...store.matrixMap };
       break;
     }

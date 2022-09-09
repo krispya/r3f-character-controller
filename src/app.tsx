@@ -17,7 +17,7 @@ function Game() {
       <InputSystem />
 
       <Fauna />
-      <Collider simplify={0.35} autoUpdate>
+      <Collider autoUpdate debug>
         <Terrain />
         <TestExtenstionTerrain />
       </Collider>
