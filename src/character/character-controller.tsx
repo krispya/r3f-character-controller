@@ -23,7 +23,6 @@ export type CharacterControllerProps = {
   slopeLimit?: number;
 };
 
-const FIXED_STEP = 1 / 60;
 // For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
 // This isn't affected by the length of the character's body. I'll automate this once I do more testing.
 const ITERATIONS = 5;
@@ -225,11 +224,6 @@ export function CharacterController({
     },
     [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, slopeLimit, store],
   );
-
-  // Set fixed step size.
-  useLayoutEffect(() => {
-    Stages.Fixed.fixedStep = FIXED_STEP;
-  }, []);
 
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {

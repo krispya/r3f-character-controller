@@ -1,6 +1,6 @@
 import './app.css';
-import { Canvas } from '@react-three/fiber';
-import { StrictMode, Suspense } from 'react';
+import { Canvas, Stages } from '@react-three/fiber';
+import { StrictMode, Suspense, useLayoutEffect } from 'react';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
 import { Terrain } from 'test-assets/terrain';
@@ -11,7 +11,14 @@ import { MushroomBoi } from 'test-assets/mushroom-boi';
 import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 
+const FIXED_STEP = 1 / 60;
+
 function Game() {
+  // Set fixed step size.
+  useLayoutEffect(() => {
+    Stages.Fixed.fixedStep = FIXED_STEP;
+  }, []);
+
   return (
     <Suspense>
       <InputSystem />
