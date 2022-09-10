@@ -116,14 +116,9 @@ export function CharacterController({
     raycaster.far = capsule.height / 2 + capsule.radius + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
-    // res[0]?.face ? groundNormal.copy(res[0].face.normal) : groundNormal.set(0, 0, 0);
 
     return [res.length !== 0, res[0]?.face ?? null];
   }, [character, collider, groundDetectionOffset, store]);
-
-  function slopeCheck(slopeLimit: number, angle: number) {
-    return angle <= slopeLimit && angle > 0;
-  }
 
   const syncMeshToBoundingVolume = () => {
     if (!character) return;
@@ -154,7 +149,7 @@ export function CharacterController({
 
       const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
-      let collisionAngle = 0;
+      let slopeCheck = false;
 
       // Start by moving the character.
       moveCharacter(velocity, delta);
@@ -171,16 +166,19 @@ export function CharacterController({
           const triPoint = vec;
           const capsulePoint = vec2;
           const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
+
           // If the distance is less than the radius of the character, we have a collision.
           if (distance < capsule.radius) {
             const depth = capsule.radius - distance;
             const direction = capsulePoint.sub(triPoint).normalize();
 
             const dot = direction.dot(vec.set(0, 1, 0));
-            collisionAngle = THREE.MathUtils.radToDeg(Math.acos(dot));
+            const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
 
             // If the collision passes the slope check, we determine grounding early.
-            if (slopeCheck(slopeLimit, collisionAngle)) {
+            slopeCheck = angle <= slopeLimit && angle > 0;
+
+            if (slopeCheck) {
               store.isGrounded = true;
               tri.getNormal(groundNormal);
             }
@@ -204,11 +202,19 @@ export function CharacterController({
 
       character.position.add(deltaVector);
 
-      // If slope is too steep, we determine grounding from a raycast from the origin of the character down.
-      if (!slopeCheck(slopeLimit, collisionAngle)) {
+      // If slope is too steep, we determine grounding with a raycast from the origin of the character down.
+      if (!slopeCheck) {
         const [isGrounded, face] = detectGround();
-        store.isGrounded = isGrounded;
         face ? groundNormal.copy(face.normal) : groundNormal.set(0, 0, 0);
+
+        const dot = groundNormal.dot(vec.set(0, 1, 0));
+        const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
+
+        if (isGrounded && angle <= slopeLimit) {
+          store.isGrounded = true;
+        } else {
+          store.isGrounded = false;
+        }
       }
 
       // Set character movement state. We have a cooldown to prevent false positives.
