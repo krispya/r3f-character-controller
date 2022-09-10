@@ -20,6 +20,7 @@ export type CharacterControllerProps = {
   groundDetectionOffset?: number;
   capsule?: CapsuleConfig;
   rotateTime?: number;
+  slopeLimit?: number;
 };
 
 const FIXED_STEP = 1 / 60;
@@ -34,7 +35,8 @@ export function CharacterController({
   iterations = ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
-  rotateTime: rotateSpeed = 0.1,
+  rotateTime = 0.1,
+  slopeLimit = 45,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -60,7 +62,7 @@ export function CharacterController({
     currentAngle: 0,
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
-    smoothDamp: new SmoothDamp(rotateSpeed, 100),
+    smoothDamp: new SmoothDamp(rotateTime, 100),
   });
 
   // Get movement modifiers.
@@ -104,20 +106,24 @@ export function CharacterController({
     [character],
   );
 
-  const detectGround = useCallback(() => {
-    if (!character || !collider) return false;
+  const detectGround = useCallback((): [boolean, THREE.Face | null] => {
+    if (!character || !collider) return [false, null];
 
-    const { raycaster, vec, groundNormal } = store;
+    const { raycaster, vec2 } = store;
     const { boundingCapsule: capsule } = character;
 
-    raycaster.set(character.position, vec.set(0, -1, 0));
+    raycaster.set(character.position, vec2.set(0, -1, 0));
     raycaster.far = capsule.height / 2 + capsule.radius + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
-    res[0]?.face ? groundNormal.copy(res[0].face.normal) : groundNormal.set(0, 0, 0);
+    // res[0]?.face ? groundNormal.copy(res[0].face.normal) : groundNormal.set(0, 0, 0);
 
-    return res.length !== 0;
+    return [res.length !== 0, res[0]?.face ?? null];
   }, [character, collider, groundDetectionOffset, store]);
+
+  function slopeCheck(slopeLimit: number, angle: number) {
+    return angle <= slopeLimit && angle > 0;
+  }
 
   const syncMeshToBoundingVolume = () => {
     if (!character) return;
@@ -146,8 +152,9 @@ export function CharacterController({
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, box, velocity, deltaVector } = store;
+      const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
+      let collisionAngle = 0;
 
       // Start by moving the character.
       moveCharacter(velocity, delta);
@@ -168,6 +175,16 @@ export function CharacterController({
           if (distance < capsule.radius) {
             const depth = capsule.radius - distance;
             const direction = capsulePoint.sub(triPoint).normalize();
+
+            const dot = direction.dot(vec.set(0, 1, 0));
+            collisionAngle = THREE.MathUtils.radToDeg(Math.acos(dot));
+
+            // If the collision passes the slope check, we determine grounding early.
+            if (slopeCheck(slopeLimit, collisionAngle)) {
+              store.isGrounded = true;
+              tri.getNormal(groundNormal);
+            }
+
             // Move the line segment so there is no longer an intersection.
             line.start.addScaledVector(direction, depth);
             line.end.addScaledVector(direction, depth);
@@ -187,14 +204,20 @@ export function CharacterController({
 
       character.position.add(deltaVector);
 
+      // If slope is too steep, we determine grounding from a raycast from the origin of the character down.
+      if (!slopeCheck(slopeLimit, collisionAngle)) {
+        const [isGrounded, face] = detectGround();
+        store.isGrounded = isGrounded;
+        face ? groundNormal.copy(face.normal) : groundNormal.set(0, 0, 0);
+      }
+
       // Set character movement state. We have a cooldown to prevent false positives.
-      store.isGrounded = detectGround();
       if (store.toggle) {
         if (store.isGrounded) fsm.send('WALK');
         if (!store.isGrounded) fsm.send('FALL');
       }
     },
-    [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
+    [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, slopeLimit, store],
   );
 
   // Set fixed step size.
@@ -221,7 +244,7 @@ export function CharacterController({
   useUpdate((_, delta) => {
     if (!meshRef.current || !character) return;
     const { direction, vec, smoothDamp } = store;
-    smoothDamp.smoothTime = rotateSpeed;
+    smoothDamp.smoothTime = rotateTime;
 
     if (direction.length() !== 0) {
       store.targetAngle = Math.atan2(direction.x, direction.z);
