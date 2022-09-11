@@ -177,15 +177,13 @@ export function CharacterController({
             const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
             collisionSlopeCheck = angle <= slopeLimit && angle >= 0;
 
-            console.log(collisionSlopeCheck, angle);
+            // We zero out the y component of the direction so that we don't slide up slopes.
+            // This is an approximation that works because of small step sizes.
+            if (!collisionSlopeCheck && store.isGroundedMovement) direction.y = 0;
 
             // Move the line segment so there is no longer an intersection.
-            if (collisionSlopeCheck || !store.isGroundedMovement) {
-              line.start.addScaledVector(direction, depth);
-              line.end.addScaledVector(direction, depth);
-            } else {
-              line.copy(prevLine);
-            }
+            line.start.addScaledVector(direction, depth);
+            line.end.addScaledVector(direction, depth);
           }
         },
       });
