@@ -148,7 +148,7 @@ export function CharacterController({
 
       const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
-      let slopeCheck = false;
+      let collisionSlopeCheck = false;
 
       // Start by moving the character.
       moveCharacter(velocity, delta);
@@ -171,16 +171,10 @@ export function CharacterController({
             const depth = capsule.radius - distance;
             const direction = capsulePoint.sub(triPoint).normalize();
 
+            // Check if the tri we collide with is within our slope limit.
             const dot = direction.dot(vec.set(0, 1, 0));
             const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
-
-            // If the collision passes the slope check, we determine grounding early.
-            slopeCheck = angle <= slopeLimit && angle > 0;
-
-            if (slopeCheck) {
-              store.isGrounded = true;
-              tri.getNormal(groundNormal);
-            }
+            collisionSlopeCheck = angle <= slopeLimit && angle > 0;
 
             // Move the line segment so there is no longer an intersection.
             line.start.addScaledVector(direction, depth);
@@ -201,9 +195,19 @@ export function CharacterController({
 
       character.position.add(deltaVector);
 
-      // If slope is too steep, we determine grounding with a raycast from the origin of the character down.
-      if (!slopeCheck) {
-        const [isGrounded, face] = detectGround();
+      const [isGrounded, face] = detectGround();
+      // If collision slope check is passed, see if our character is over ground so we don't hover.
+      // If we fail the collision slop check, double check it by casting down.
+      // Can definitely clean this up.
+      if (collisionSlopeCheck) {
+        if (isGrounded && face) {
+          store.isGrounded = true;
+          groundNormal.copy(face.normal);
+        } else {
+          store.isGrounded = false;
+          groundNormal.set(0, 0, 0);
+        }
+      } else {
         face ? groundNormal.copy(face.normal) : groundNormal.set(0, 0, 0);
 
         const dot = groundNormal.dot(vec.set(0, 1, 0));
