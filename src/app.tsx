@@ -34,7 +34,7 @@ function Game() {
         walkSpeed={5}
         airControl={0.5}
         capsule={{ radius: 0.27 }}
-        slopeLimit={45}
+        slopeLimit={50}
         gravity={-14}
         // debug={{ showBox: true, showCollider: true }}
       >

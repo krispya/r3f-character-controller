@@ -49,6 +49,7 @@ export function CharacterController({
     velocity: new THREE.Vector3(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
+    prevLine: new THREE.Line3(),
     raycaster: new THREE.Raycaster(),
     toggle: true,
     timer: 0,
@@ -146,7 +147,7 @@ export function CharacterController({
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
+      const { line, vec, vec2, box, velocity, deltaVector, groundNormal, prevLine } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
       let collisionSlopeCheck = false;
 
@@ -174,11 +175,17 @@ export function CharacterController({
             // Check if the tri we collide with is within our slope limit.
             const dot = direction.dot(vec.set(0, 1, 0));
             const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
-            collisionSlopeCheck = angle <= slopeLimit && angle > 0;
+            collisionSlopeCheck = angle <= slopeLimit && angle >= 0;
+
+            console.log(collisionSlopeCheck, angle);
 
             // Move the line segment so there is no longer an intersection.
-            line.start.addScaledVector(direction, depth);
-            line.end.addScaledVector(direction, depth);
+            if (collisionSlopeCheck || !store.isGroundedMovement) {
+              line.start.addScaledVector(direction, depth);
+              line.end.addScaledVector(direction, depth);
+            } else {
+              line.copy(prevLine);
+            }
           }
         },
       });
@@ -225,6 +232,8 @@ export function CharacterController({
         if (store.isGrounded) fsm.send('WALK');
         if (!store.isGrounded) fsm.send('FALL');
       }
+
+      prevLine.copy(line);
     },
     [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, slopeLimit, store],
   );
