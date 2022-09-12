@@ -68,13 +68,3 @@ export function quatSmoothDamp2(
 
   return new THREE.Quaternion(result.x, result.y, result.z, result.w);
 }
-
-export function testSlope(normal: THREE.Vector3, upDirection: THREE.Vector3, slopeLimit: number) {
-  const dp = normal.dot(upDirection);
-  return dp >= 0.0 && dp < slopeLimit;
-}
-
-export function toFixedNumber(num: number, digits: number, base?: number) {
-  const pow = Math.pow(base || 10, digits);
-  return Math.round(num * pow) / pow;
-}

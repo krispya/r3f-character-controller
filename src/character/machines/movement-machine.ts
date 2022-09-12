@@ -5,7 +5,7 @@ export const movementMachine = createMachine(
   {
     id: 'character',
     predictableActionArguments: true,
-    initial: 'falling',
+    initial: 'walking',
     states: {
       walking: {
         on: { FALL: 'falling' },
