@@ -1,7 +1,7 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
 import { useCallback, useContext, useLayoutEffect, useState } from 'react';
-import { GRAVITY } from './gravity';
+// import { GRAVITY } from './gravity';
 import { createModifier } from './use-modifiers';
 
 export type JumpProps = {
@@ -16,7 +16,7 @@ export function Jump({
   jumpSpeed = 6,
   jump,
   jumpDuration = 300,
-  comebackAcceleration = GRAVITY * 2,
+  // comebackAcceleration = GRAVITY * 2,
   coyoteTime = 0.2,
 }: JumpProps) {
   const { addModifier, removeModifier, getDeltaVector, getIsGroundedMovement, fsm } =
@@ -66,7 +66,7 @@ export function Jump({
 
     if (store.isRising && performance.now() > store.jumpStartTime + jumpDuration) store.isRising = false;
 
-    if (!store.isRising && !isGrounded) modifier.value.y += comebackAcceleration * delta;
+    // if (!store.isRising && !isGrounded) modifier.value.y += comebackAcceleration * delta;
 
     if (deltaVector.normalize().y < -0.9) modifier.value.y = 0;
 
