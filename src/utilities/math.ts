@@ -74,7 +74,7 @@ export function testSlope(normal: THREE.Vector3, upDirection: THREE.Vector3, slo
   return dp >= 0.0 && dp < slopeLimit;
 }
 
-export function toFixedNumber(num: number, digits: number, base?: number) {
-  const pow = Math.pow(base || 10, digits);
+export function toFixedNumber(num: number, digits: number, base = 10) {
+  const pow = Math.pow(base, digits);
   return Math.round(num * pow) / pow;
 }

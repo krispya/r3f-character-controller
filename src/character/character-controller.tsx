@@ -11,7 +11,6 @@ import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
-import { toFixedNumber } from 'utilities/math';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -65,7 +64,6 @@ export function CharacterController({
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
     smoothDamp: new SmoothDamp(rotateTime, 100),
-    hasMoved: true,
   });
 
   // Get movement modifiers.
@@ -142,12 +140,6 @@ export function CharacterController({
     }
 
     direction.normalize().negate();
-
-    if (velocity.lengthSq() === 0) {
-      store.hasMoved = false;
-    } else {
-      store.hasMoved = true;
-    }
   };
 
   // Applies forces to the character, then checks for collision.
@@ -156,9 +148,8 @@ export function CharacterController({
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, vec3, box, velocity, deltaVector, groundNormal, prevLine } = store;
+      const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
-      let collisionSlopeCheck = false;
 
       // Start by moving the character.
       moveCharacter(velocity, delta);
@@ -174,28 +165,12 @@ export function CharacterController({
         intersectsTriangle: (tri) => {
           const triPoint = vec;
           const capsulePoint = vec2;
-          const normal = vec3;
           const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
 
           // If the distance is less than the radius of the character, we have a collision.
           if (distance < capsule.radius) {
             const depth = capsule.radius - distance;
             const direction = capsulePoint.sub(triPoint).normalize();
-
-            tri.getNormal(normal);
-            normal.x = toFixedNumber(normal.x, 8);
-            normal.y = toFixedNumber(normal.y, 8);
-            normal.z = toFixedNumber(normal.z, 8);
-
-            // Check if the tri we collide with is within our slope limit.
-            const dot = normal.dot(vec.set(0, 1, 0));
-            const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
-            collisionSlopeCheck = angle <= slopeLimit && angle > 0;
-
-            // We zero out the y component of the direction so that we don't slide up slopes.
-            // This is an approximation that works because of small step sizes.
-            // if (!collisionSlopeCheck && store.isGroundedMovement) direction.y = 0;
-            // else console.log('------------ passed check -----------');
 
             // Move the line segment so there is no longer an intersection.
             line.start.addScaledVector(direction, depth);
@@ -217,47 +192,21 @@ export function CharacterController({
       character.position.add(deltaVector);
 
       const [isGrounded, face] = detectGround();
-      // If collision slope check is passed, see if our character is over ground so we don't hover.
-      // If we fail the collision slop check, double check it by casting down.
-      // Can definitely clean this up.
-      if (collisionSlopeCheck) {
-        if (isGrounded && face) {
-          store.isGrounded = true;
-          groundNormal.copy(face.normal);
-        } else {
-          store.isGrounded = false;
-          groundNormal.set(0, 0, 0);
-        }
-      } else {
-        face ? groundNormal.copy(face.normal) : groundNormal.set(0, 0, 0);
-
-        const dot = groundNormal.dot(vec.set(0, 1, 0));
-        const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
-
-        if (isGrounded && angle <= slopeLimit) {
-          store.isGrounded = true;
-        } else {
-          store.isGrounded = false;
-        }
-      }
+      store.isGrounded = isGrounded;
+      if (face) groundNormal.copy(face.normal);
 
       // Set character movement state. We have a cooldown to prevent false positives.
       if (store.toggle) {
         if (store.isGrounded) fsm.send('WALK');
         if (!store.isGrounded) fsm.send('FALL');
       }
-
-      prevLine.copy(line);
     },
-    [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, slopeLimit, store],
+    [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
   );
 
   // Run physics simulation in fixed loop.
   useUpdate((_, delta) => {
     calculateVelocity();
-
-    // We have an early out if the character isn't moving.
-    if (!store.hasMoved) return;
 
     for (let i = 0; i < iterations; i++) {
       step(delta / iterations);
@@ -266,7 +215,7 @@ export function CharacterController({
 
   // Sync mesh so movement is visible.
   useUpdate(() => {
-    if (store.hasMoved) syncMeshToBoundingVolume();
+    syncMeshToBoundingVolume();
   }, Stages.Update);
 
   // Rotate the mesh to point in the direction of movement.
