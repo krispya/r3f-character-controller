@@ -11,6 +11,7 @@ import { movementMachine } from './machines/movement-machine';
 import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
+import { notEqualToZero } from 'utilities/math';
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ export type CharacterControllerProps = {
 // For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
 // This isn't affected by the length of the character's body. I'll automate this once I do more testing.
 const ITERATIONS = 5;
+const MAX_ITERATIONS = 10;
 
 export function CharacterController({
   children,
@@ -35,7 +37,6 @@ export function CharacterController({
   groundDetectionOffset = 0.1,
   capsule = 'auto',
   rotateTime = 0.1,
-  slopeLimit = 45,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -43,11 +44,10 @@ export function CharacterController({
   const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 
   const [store] = useState({
-    vec: new THREE.Vector3(),
-    vec2: new THREE.Vector3(),
-    vec3: new THREE.Vector3(),
+    vecA: new THREE.Vector3(),
+    vecB: new THREE.Vector3(),
+    vecC: new THREE.Vector3(),
     deltaVector: new THREE.Vector3(),
-    velocity: new THREE.Vector3(),
     box: new THREE.Box3(),
     line: new THREE.Line3(),
     prevLine: new THREE.Line3(),
@@ -64,6 +64,8 @@ export function CharacterController({
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
     smoothDamp: new SmoothDamp(rotateTime, 100),
+    movement: new THREE.Vector3(),
+    moveList: [] as THREE.Vector3[],
   });
 
   // Get movement modifiers.
@@ -110,7 +112,7 @@ export function CharacterController({
   const detectGround = useCallback((): [boolean, THREE.Face | null] => {
     if (!character || !collider) return [false, null];
 
-    const { raycaster, vec2 } = store;
+    const { raycaster, vecB: vec2 } = store;
     const { boundingCapsule: capsule } = character;
 
     raycaster.set(character.position, vec2.set(0, -1, 0));
@@ -126,13 +128,13 @@ export function CharacterController({
     meshRef.current.position.copy(character.position);
   };
 
-  const calculateVelocity = () => {
-    const { velocity, direction } = store;
-    velocity.set(0, 0, 0);
+  const calculateMovement = () => {
+    const { movement, direction } = store;
+    movement.set(0, 0, 0);
     direction.set(0, 0, 0);
 
     for (const modifier of modifiers) {
-      velocity.add(modifier.value);
+      movement.add(modifier.value);
 
       if (modifier.name === 'walking' || modifier.name === 'falling') {
         direction.add(modifier.value);
@@ -142,13 +144,62 @@ export function CharacterController({
     direction.normalize().negate();
   };
 
+  const decomposeMovement = () => {
+    const { movement, moveList, vecA, vecB } = store;
+    moveList.length = 0;
+
+    const horizontal = vecA.set(movement.x, 0, movement.z);
+    const vertical = vecB.set(0, movement.y, 0);
+    const isHorizontalNotZero = notEqualToZero(horizontal.x) || notEqualToZero(horizontal.z);
+
+    // Process up vector component first.
+    if (vertical.y > 0) {
+      moveList.push(vertical);
+      if (isHorizontalNotZero) moveList.push(horizontal.clone());
+      return;
+    }
+
+    // Process down vector component next.
+    // This covers some logic for stepping and sliding that I'll add later.
+    if (vertical.y < 0) {
+      if (isHorizontalNotZero) moveList.push(horizontal.clone());
+      moveList.push(vertical);
+      return;
+    }
+
+    // Process horizontal component last.
+    // Will add some stepping logic here later.
+    moveList.push(horizontal);
+  };
+
+  const moveLoop = () => {
+    const { moveList, vecA, vecB } = store;
+    let index = 0;
+    const currentMove = moveList[index];
+    const virtualPosition = vecB.copy(character.position);
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const currentMoveRef = vecA.copy(currentMove);
+
+      // Test for collision with a capsule cast in the movement direction.
+      // If there is a collision, move the character to the point of collision.
+      // Else move the character by the full movement vector.
+      // Depenetrate
+
+      if (index < moveList.length - 1) index++;
+      if (index === moveList.length - 1) break;
+    }
+
+    character.position.copy(virtualPosition);
+  };
+
   // Applies forces to the character, then checks for collision.
   // If one is detected then the character is moved to no longer collide.
   const step = useCallback(
     (delta: number) => {
       if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vec, vec2, box, velocity, deltaVector, groundNormal } = store;
+      const { line, vecA: vec, vecB: vec2, box, movement: velocity, deltaVector, groundNormal } = store;
       const { boundingCapsule: capsule, boundingBox } = character;
 
       // Start by moving the character.
@@ -204,13 +255,13 @@ export function CharacterController({
     [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
   );
 
-  // Run physics simulation in fixed loop.
-  useUpdate((_, delta) => {
-    calculateVelocity();
+  useUpdate(() => {
+    calculateMovement();
+    decomposeMovement();
 
-    for (let i = 0; i < iterations; i++) {
-      step(delta / iterations);
-    }
+    // for (let i = 0; i < iterations; i++) {
+    //   step(delta / iterations);
+    // }
   }, Stages.Fixed);
 
   // Sync mesh so movement is visible.
@@ -222,7 +273,7 @@ export function CharacterController({
   // TODO: Try using a quaternion slerp instead.
   useUpdate((_, delta) => {
     if (!meshRef.current || !character) return;
-    const { direction, vec, smoothDamp } = store;
+    const { direction, vecA: vec, smoothDamp } = store;
     smoothDamp.smoothTime = rotateTime;
 
     if (direction.length() !== 0) {
@@ -246,7 +297,7 @@ export function CharacterController({
     meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.currentAngle);
   }, Stages.Late);
 
-  const getVelocity = useCallback(() => store.velocity, [store]);
+  const getVelocity = useCallback(() => store.movement, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
   const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);

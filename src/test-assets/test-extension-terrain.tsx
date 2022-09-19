@@ -40,7 +40,7 @@ export function TestExtenstionTerrain() {
       <Box name="Floor" args={[12, 0.25, 6]} position={[0, 0, -5]}>
         <meshStandardMaterial color="white" />
       </Box>
-      <Box name="Wall" args={[1, 0.5, 12]} position={[0, -0.1, -8]} rotation={[0, Math.PI / 2, Math.PI / 2]}>
+      <Box name="Wall" args={[8, 0.5, 12]} position={[0, -0.1, -8]} rotation={[0, Math.PI / 2, Math.PI / 2]}>
         <meshStandardMaterial color="white" />
       </Box>
       <Box name="Steep Ramp" args={[5, 0.25, 1.8]} position={[1, 1, -6.4]} rotation={[0, Math.PI / 2, 0.9]}>
