@@ -182,9 +182,20 @@ export function CharacterController({
       const currentMoveRef = vecA.copy(currentMove);
 
       // Test for collision with a capsule cast in the movement direction.
+      const hit = capsuleCast(radius, height, transform, direction, maxDistance);
+
       // If there is a collision, move the character to the point of collision.
-      // Else move the character by the full movement vector.
+      if (hit) {
+        const deltaVector = resolveCollision(hit);
+        virtualPosition.add(deltaVector);
+      } else {
+        // Else move the character by the full movement vector.
+        virtualPosition.add(currentMoveRef);
+      }
+
       // Depenetrate
+      const deltaVector = depenetrate();
+      if (deltaVector) virtualPosition.add(deltaVector);
 
       if (index < moveList.length - 1) index++;
       if (index === moveList.length - 1) break;

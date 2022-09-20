@@ -148,7 +148,6 @@ export function Collider({
         store.boxMap[c.uuid] = c.geometry.boundingBox;
         store.matrixMap[c.uuid] = c.matrix.clone();
       }
-      console.log('store.boxMap', store.boxMap);
     });
 
     if (Object.keys(store.boxMap).length !== Object.keys(store.prevBoxMap).length) {
