@@ -13,8 +13,10 @@ import { InputSystem } from 'input/input-system';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
+import { LineDebug } from 'utilities/line-debug';
 
 const FIXED_STEP = 1 / 60;
+const ITERATIONS = 5;
 
 function Game() {
   // Set fixed step size.
@@ -32,6 +34,7 @@ function Game() {
     hitTri: new ExtendedTriangle(),
     hitDistance: 0,
     hitDirection: new THREE.Vector3(),
+    collision: false,
   }));
   const collider = useCollider((state) => state.collider);
 
@@ -45,34 +48,44 @@ function Game() {
       line.start.set(0, halfPointHeight, 0);
       line.end.set(0, -halfPointHeight, 0);
       // Apply the transform to the points.
-      // line.start.applyMatrix4(transform);
-      // line.end.applyMatrix4(transform);
-      // Move it by the direction and max distance.
-      // line.start.addScaledVector(direction, maxDistance);
-      // line.end.addScaledVector(direction, maxDistance);
+      line.start.applyMatrix4(transform);
+      line.end.applyMatrix4(transform);
       // Build the box.
       box.setFromPoints([line.start, line.end]);
       box.min.addScalar(-radius);
       box.max.addScalar(radius);
+
       // Iterate by the number of physics steps we want to use to avoid tunneling.
+      // We'll need to do a loop and then break with the first hit. We don't want to keep iterating
+      // as the later results will be useless to us.
 
-      console.log(transform);
+      for (let i = 0; i < ITERATIONS; i++) {
+        // Move it by the direction and max distance.
+        line.start.addScaledVector(direction, maxDistance / ITERATIONS);
+        line.end.addScaledVector(direction, maxDistance / ITERATIONS);
+        box.min.addScaledVector(direction, maxDistance / ITERATIONS);
+        box.max.addScaledVector(direction, maxDistance / ITERATIONS);
 
-      const collision = collider.geometry.boundsTree.shapecast({
-        intersectsBounds: (bounds) => bounds.intersectsBox(box),
-        intersectsTriangle: (tri) => {
-          store.hitDistance = tri.closestPointToSegment(line, triPoint, capsulePoint);
+        store.collision = collider.geometry.boundsTree.shapecast({
+          intersectsBounds: (bounds) => bounds.intersectsBox(box),
+          intersectsTriangle: (tri) => {
+            store.hitDistance = tri.closestPointToSegment(line, triPoint, capsulePoint);
 
-          // If the store.hitDistance  is less than the radius of the character, we have a collision.
-          if (store.hitDistance < radius) {
-            const depth = radius - store.hitDistance;
-            store.hitDirection = capsulePoint.sub(triPoint).normalize();
-            hitTri.copy(tri);
-          }
-        },
-      });
+            // If the store.hitDistance  is less than the radius of the character, we have a collision.
+            if (store.hitDistance < radius) {
+              const depth = radius - store.hitDistance;
+              store.hitDirection = capsulePoint.sub(triPoint).normalize();
+              hitTri.copy(tri);
+              return true;
+            }
+            return false;
+          },
+        });
 
-      if (collision) {
+        if (store.collision) break;
+      }
+
+      if (store.collision) {
         return {
           distance: store.hitDistance,
           direction: store.hitDirection,
@@ -85,8 +98,16 @@ function Game() {
     [collider, store],
   );
 
+  // Unity Raycast: Raycast(origin, direction, maxDistance, layerMask, queryTriggerInteraction) returns hitInfo
+  // Alternatievely there is Racyast(ray, maxDistance, layerMask, queryTriggerInteraction) returns hitInfo
+  // Where ray is a Ray(origin, direction) object much like Three's Raycaster.
+  // This expects to return a single hit. (The first hit.)
+  // I'll do it like the first to keep the API consistent with capsuleCast().
+
   return (
     <Suspense>
+      <LineDebug line={store.line} />
+
       <InputSystem />
 
       <Fauna />
@@ -96,6 +117,7 @@ function Game() {
       </Collider>
 
       <PlayerController
+        id="player"
         capsuleCast={capsuleCast}
         position={[0, 2, 0]}
         walkSpeed={5}

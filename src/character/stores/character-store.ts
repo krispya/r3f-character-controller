@@ -1,12 +1,12 @@
-import { BoundingVolume } from 'character/bounding-volume/use-bounding-volume';
+import { Character } from 'character/character-controller';
 import create from 'zustand';
 
 type CharacterState = {
-  character: BoundingVolume;
-  setCharacter: (character: BoundingVolume) => void;
+  characters: Map<string, Character>;
+  setCharacter: (id: string, character: Character) => void;
 };
 
 export const useCharacterController = create<CharacterState>((set) => ({
-  character: new BoundingVolume(),
-  setCharacter: (character) => set({ character }),
+  characters: new Map(),
+  setCharacter: (id, character) => set((state) => ({ characters: state.characters.set(id, character) })),
 }));

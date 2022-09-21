@@ -19,7 +19,13 @@ export type HitInfo = {
   point: THREE.Vector3;
 };
 
+export type Capsule = {
+  radius: number;
+  height: number;
+};
+
 export type CharacterControllerProps = {
+  id: string;
   children: React.ReactNode;
   debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean; showForce?: boolean };
   position?: Vector3;
@@ -37,11 +43,24 @@ export type CharacterControllerProps = {
   ) => any;
 };
 
-// For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
-// This isn't affected by the length of the character's body. I'll automate this once I do more testing.
+export class Character extends THREE.Object3D {
+  public isCharacter: boolean;
+  public boundingCapsule: Capsule;
+  public boundingBox: THREE.Box3;
+
+  constructor(radius: number, height: number) {
+    super();
+    this.type = 'Character';
+    this.isCharacter = true;
+    this.boundingCapsule = { radius, height };
+    this.boundingBox = new THREE.Box3();
+  }
+}
+
 const MAX_ITERATIONS = 10;
 
 export function CharacterController({
+  id,
   children,
   debug = false,
   position,
@@ -52,9 +71,9 @@ export function CharacterController({
   capsuleCast,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
-  const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
+  const [character, setCharacter] = useCharacterController((state) => [state.characters.get(id), state.setCharacter]);
 
-  const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
+  // const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 
   const [store] = useState({
     vecA: new THREE.Vector3(),
@@ -112,9 +131,7 @@ export function CharacterController({
   // Get world collider BVH.
   const collider = useCollider((state) => state.collider);
 
-  // Build bounding volume. Right now it can only be a capsule.
-  const bounding = useBoundingVolume(capsule, meshRef);
-  useLayoutEffect(() => setCharacter(bounding), [bounding, setCharacter]);
+  useLayoutEffect(() => setCharacter(id, new Character(0.27, 0.27 * 2 + 1)), [setCharacter]);
 
   const moveCharacter = useCallback(
     (velocity: THREE.Vector3, delta: number) => {
@@ -124,6 +141,11 @@ export function CharacterController({
     [character],
   );
 
+  const syncMeshToBoundingVolume = () => {
+    if (!character) return;
+    meshRef.current.position.copy(character.position);
+  };
+
   const detectGround = useCallback((): [boolean, THREE.Face | null] => {
     if (!character || !collider) return [false, null];
 
@@ -131,17 +153,26 @@ export function CharacterController({
     const { boundingCapsule: capsule } = character;
 
     raycaster.set(character.position, vec2.set(0, -1, 0));
-    raycaster.far = capsule.height / 2 + capsule.radius + groundDetectionOffset;
+    raycaster.far = capsule.height / 2 + groundDetectionOffset;
     raycaster.firstHitOnly = true;
     const res = raycaster.intersectObject(collider, false);
 
     return [res.length !== 0, res[0]?.face ?? null];
   }, [character, collider, groundDetectionOffset, store]);
 
-  const syncMeshToBoundingVolume = () => {
-    if (!character) return;
-    meshRef.current.position.copy(character.position);
-  };
+  const updateGroundedState = useCallback(() => {
+    const [isGrounded, face] = detectGround();
+    store.isGrounded = isGrounded;
+    if (face) store.groundNormal.copy(face.normal);
+  }, [detectGround, store]);
+
+  const updateMovementMode = useCallback(() => {
+    // Set character movement state. We have a cooldown to prevent false positives.
+    if (store.toggle) {
+      if (store.isGrounded) fsm.send('WALK');
+      if (!store.isGrounded) fsm.send('FALL');
+    }
+  }, [fsm, store]);
 
   const calculateMovement = () => {
     const { movement, direction } = store;
@@ -188,101 +219,114 @@ export function CharacterController({
   };
 
   const moveLoop = (dt: number) => {
+    if (!character) return;
     const { moveList, vecA, vecB } = store;
     let index = 0;
-    const currentMove = moveList[index];
     const virtualPosition = vecB.copy(character.position);
+    // Apply delta time to the move vector.
+    moveList.forEach((move) => move.multiplyScalar(dt));
 
     for (let i = 0; i < maxIterations; i++) {
-      const currentMoveRef = vecA.copy(currentMove);
+      const currentMove = vecA.copy(moveList[index]);
+      console.log(index, currentMove);
 
       // Test for collision with a capsule cast in the movement direction.
       // Height will now be whole length of the capsule.
       // radius, height, transform, direction, maxDistance
-      const hit = capsuleCastHandler(0.27, 0.27 * 2 + 1, character.matrix, currentMoveRef, currentMoveRef.length());
+      character.updateMatrix();
+      const hit = capsuleCastHandler(
+        character.boundingCapsule.radius,
+        character.boundingCapsule.height,
+        character.matrix,
+        currentMove,
+        currentMove.length(),
+      );
 
       // console.log('hit: ', hit);
       // // If there is a collision, move the character to the point of collision.
       if (hit) {
         // const deltaVector = resolveCollision(hit);
         // virtualPosition.add(deltaVector);
+        virtualPosition.add(currentMove);
       } else {
         // Else move the character by the full movement vector.
-        virtualPosition.addScaledVector(currentMoveRef, dt);
+        virtualPosition.add(currentMove);
       }
 
       // // Depenetrate
       // const deltaVector = depenetrate();
       // if (deltaVector) virtualPosition.add(deltaVector);
 
-      if (index < moveList.length - 1) index++;
-      if (index === moveList.length - 1) break;
+      if (index < moveList.length) index++;
+      if (index === moveList.length) break;
     }
 
     character.position.copy(virtualPosition);
+    updateGroundedState();
+    updateMovementMode();
   };
 
   // Applies forces to the character, then checks for collision.
   // If one is detected then the character is moved to no longer collide.
-  const step = useCallback(
-    (delta: number) => {
-      if (!collider?.geometry.boundsTree || !character) return;
+  // const step = useCallback(
+  //   (delta: number) => {
+  //     if (!collider?.geometry.boundsTree || !character) return;
 
-      const { line, vecA: vec, vecB: vec2, box, movement: velocity, deltaVector, groundNormal } = store;
-      const { boundingCapsule: capsule, boundingBox } = character;
+  //     const { line, vecA: vec, vecB: vec2, box, movement: velocity, deltaVector, groundNormal } = store;
+  //     const { boundingCapsule: capsule, boundingBox } = character;
 
-      // Start by moving the character.
-      moveCharacter(velocity, delta);
+  //     // Start by moving the character.
+  //     moveCharacter(velocity, delta);
 
-      // Update bounding volume.
-      character.computeBoundingVolume();
-      line.copy(capsule.line);
-      box.copy(boundingBox);
+  //     // Update bounding volume.
+  //     character.computeBoundingVolume();
+  //     line.copy(capsule.line);
+  //     box.copy(boundingBox);
 
-      // Check for collisions.
-      collider.geometry.boundsTree.shapecast({
-        intersectsBounds: (bounds) => bounds.intersectsBox(box),
-        intersectsTriangle: (tri) => {
-          const triPoint = vec;
-          const capsulePoint = vec2;
-          const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
+  //     // Check for collisions.
+  //     collider.geometry.boundsTree.shapecast({
+  //       intersectsBounds: (bounds) => bounds.intersectsBox(box),
+  //       intersectsTriangle: (tri) => {
+  //         const triPoint = vec;
+  //         const capsulePoint = vec2;
+  //         const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
 
-          // If the distance is less than the radius of the character, we have a collision.
-          if (distance < capsule.radius) {
-            const depth = capsule.radius - distance;
-            const direction = capsulePoint.sub(triPoint).normalize();
+  //         // If the distance is less than the radius of the character, we have a collision.
+  //         if (distance < capsule.radius) {
+  //           const depth = capsule.radius - distance;
+  //           const direction = capsulePoint.sub(triPoint).normalize();
 
-            // Move the line segment so there is no longer an intersection.
-            line.start.addScaledVector(direction, depth);
-            line.end.addScaledVector(direction, depth);
-          }
-        },
-      });
+  //           // Move the line segment so there is no longer an intersection.
+  //           line.start.addScaledVector(direction, depth);
+  //           line.end.addScaledVector(direction, depth);
+  //         }
+  //       },
+  //     });
 
-      const newPosition = vec;
-      deltaVector.set(0, 0, 0);
-      // Bounding volume origin is calculated. This might lose percision.
-      line.getCenter(newPosition);
-      deltaVector.subVectors(newPosition, character.position);
+  //     const newPosition = vec;
+  //     deltaVector.set(0, 0, 0);
+  //     // Bounding volume origin is calculated. This might lose percision.
+  //     line.getCenter(newPosition);
+  //     deltaVector.subVectors(newPosition, character.position);
 
-      // Discard values smaller than our tolerance.
-      const offset = Math.max(0, deltaVector.length() - 1e-7);
-      deltaVector.normalize().multiplyScalar(offset);
+  //     // Discard values smaller than our tolerance.
+  //     const offset = Math.max(0, deltaVector.length() - 1e-7);
+  //     deltaVector.normalize().multiplyScalar(offset);
 
-      character.position.add(deltaVector);
+  //     character.position.add(deltaVector);
 
-      const [isGrounded, face] = detectGround();
-      store.isGrounded = isGrounded;
-      if (face) groundNormal.copy(face.normal);
+  //     const [isGrounded, face] = detectGround();
+  //     store.isGrounded = isGrounded;
+  //     if (face) groundNormal.copy(face.normal);
 
-      // Set character movement state. We have a cooldown to prevent false positives.
-      if (store.toggle) {
-        if (store.isGrounded) fsm.send('WALK');
-        if (!store.isGrounded) fsm.send('FALL');
-      }
-    },
-    [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
-  );
+  //     // Set character movement state. We have a cooldown to prevent false positives.
+  //     if (store.toggle) {
+  //       if (store.isGrounded) fsm.send('WALK');
+  //       if (!store.isGrounded) fsm.send('FALL');
+  //     }
+  //   },
+  //   [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
+  // );
 
   useUpdate((_, dt) => {
     calculateMovement();
@@ -347,13 +391,10 @@ export function CharacterController({
         getIsFalling,
         getGroundNormal,
       }}>
-      <group position={position} ref={meshRef}>
-        <group position={capsule === 'auto' ? 0 : capsule.center}>{children}</group>
-      </group>
+      <group ref={meshRef}>{children}</group>
+      {/* <AirCollision /> */}
 
-      <AirCollision />
-
-      {character && _debug && (
+      {/* {character && _debug && (
         <VolumeDebug
           bounding={character}
           showCollider={_debug.showCollider}
@@ -361,7 +402,7 @@ export function CharacterController({
           showBox={_debug.showBox}
           showForce={_debug.showForce}
         />
-      )}
+      )} */}
     </CharacterControllerContext.Provider>
   );
 }

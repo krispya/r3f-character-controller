@@ -24,6 +24,7 @@ export function PlayerController({
   children,
   walkSpeed = WALK_SPEED,
   airControl = 0.5,
+  id,
   ...props
 }: PlayerControllerProps) {
   const [store] = useState(() => ({
@@ -33,11 +34,11 @@ export function PlayerController({
     move: new THREE.Vector2(),
   }));
 
-  const character = useCharacterController((state) => state.character);
+  const character = useCharacterController((state) => state.characters.get(id));
   const setTarget = useCameraController((state) => state.setTarget);
   const inputs = useInputs();
 
-  useEffect(() => setTarget(character), [character, setTarget]);
+  useEffect(() => setTarget(character as THREE.Object3D), [character, setTarget]);
 
   // Reset if we fall off the level.
   useUpdate(() => {
@@ -74,6 +75,7 @@ export function PlayerController({
 
   return (
     <CharacterController
+      id={id}
       position={props.position}
       debug={props.debug}
       maxIterations={props.maxIterations}
