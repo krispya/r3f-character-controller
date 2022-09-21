@@ -76,11 +76,12 @@ export function PlayerController({
     <CharacterController
       position={props.position}
       debug={props.debug}
-      iterations={props.iterations}
+      maxIterations={props.maxIterations}
       groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
       rotateTime={props.rotateTime}
-      slopeLimit={props.slopeLimit}>
+      slopeLimit={props.slopeLimit}
+      capsuleCast={props.capsuleCast}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />

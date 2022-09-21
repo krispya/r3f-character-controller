@@ -12,31 +12,44 @@ import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { notEqualToZero } from 'utilities/math';
+import { useEventHandler } from 'utilities/use-event-handler';
+
+export type HitInfo = {
+  normal: THREE.Vector3;
+  point: THREE.Vector3;
+};
 
 export type CharacterControllerProps = {
   children: React.ReactNode;
   debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean; showForce?: boolean };
   position?: Vector3;
-  iterations?: number;
+  maxIterations?: number;
   groundDetectionOffset?: number;
   capsule?: CapsuleConfig;
   rotateTime?: number;
   slopeLimit?: number;
+  capsuleCast: (
+    radius: number,
+    height: number,
+    transform: THREE.Matrix4,
+    direction: THREE.Vector3,
+    maxDistance: number,
+  ) => any;
 };
 
 // For reasons unknown, an additional iteration is required every 15 units of force to prevent tunneling.
 // This isn't affected by the length of the character's body. I'll automate this once I do more testing.
-const ITERATIONS = 5;
 const MAX_ITERATIONS = 10;
 
 export function CharacterController({
   children,
   debug = false,
   position,
-  iterations = ITERATIONS,
+  maxIterations = MAX_ITERATIONS,
   groundDetectionOffset = 0.1,
   capsule = 'auto',
   rotateTime = 0.1,
+  capsuleCast,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.character, state.setCharacter]);
@@ -67,6 +80,8 @@ export function CharacterController({
     movement: new THREE.Vector3(),
     moveList: [] as THREE.Vector3[],
   });
+
+  const capsuleCastHandler = useEventHandler<typeof capsuleCast>(capsuleCast);
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
@@ -154,7 +169,7 @@ export function CharacterController({
 
     // Process up vector component first.
     if (vertical.y > 0) {
-      moveList.push(vertical);
+      moveList.push(vertical.clone());
       if (isHorizontalNotZero) moveList.push(horizontal.clone());
       return;
     }
@@ -163,39 +178,42 @@ export function CharacterController({
     // This covers some logic for stepping and sliding that I'll add later.
     if (vertical.y < 0) {
       if (isHorizontalNotZero) moveList.push(horizontal.clone());
-      moveList.push(vertical);
+      moveList.push(vertical.clone());
       return;
     }
 
     // Process horizontal component last.
     // Will add some stepping logic here later.
-    moveList.push(horizontal);
+    moveList.push(horizontal.clone());
   };
 
-  const moveLoop = () => {
+  const moveLoop = (dt: number) => {
     const { moveList, vecA, vecB } = store;
     let index = 0;
     const currentMove = moveList[index];
     const virtualPosition = vecB.copy(character.position);
 
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
+    for (let i = 0; i < maxIterations; i++) {
       const currentMoveRef = vecA.copy(currentMove);
 
       // Test for collision with a capsule cast in the movement direction.
-      const hit = capsuleCast(radius, height, transform, direction, maxDistance);
+      // Height will now be whole length of the capsule.
+      // radius, height, transform, direction, maxDistance
+      const hit = capsuleCastHandler(0.27, 0.27 * 2 + 1, character.matrix, currentMoveRef, currentMoveRef.length());
 
-      // If there is a collision, move the character to the point of collision.
+      // console.log('hit: ', hit);
+      // // If there is a collision, move the character to the point of collision.
       if (hit) {
-        const deltaVector = resolveCollision(hit);
-        virtualPosition.add(deltaVector);
+        // const deltaVector = resolveCollision(hit);
+        // virtualPosition.add(deltaVector);
       } else {
         // Else move the character by the full movement vector.
-        virtualPosition.add(currentMoveRef);
+        virtualPosition.addScaledVector(currentMoveRef, dt);
       }
 
-      // Depenetrate
-      const deltaVector = depenetrate();
-      if (deltaVector) virtualPosition.add(deltaVector);
+      // // Depenetrate
+      // const deltaVector = depenetrate();
+      // if (deltaVector) virtualPosition.add(deltaVector);
 
       if (index < moveList.length - 1) index++;
       if (index === moveList.length - 1) break;
@@ -266,9 +284,10 @@ export function CharacterController({
     [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
   );
 
-  useUpdate(() => {
+  useUpdate((_, dt) => {
     calculateMovement();
     decomposeMovement();
+    moveLoop(dt);
 
     // for (let i = 0; i < iterations; i++) {
     //   step(delta / iterations);
