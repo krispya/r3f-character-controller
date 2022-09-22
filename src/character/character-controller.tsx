@@ -227,7 +227,6 @@ export function CharacterController({
         currentMove.length(),
       );
 
-      // console.log('hit: ', hit);
       // // If there is a collision, move the character to the point of collision.
       if (hit) {
         // const deltaVector = resolveCollision(hit);

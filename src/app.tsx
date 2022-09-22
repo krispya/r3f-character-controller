@@ -125,7 +125,7 @@ function Game() {
 
   const sphereRef = useRef<THREE.Mesh>(null!);
   useUpdate(() => {
-    sphereRef.current.position.copy(store.origin);
+    if (sphereRef.current) sphereRef.current.position.copy(store.origin);
   });
 
   return (
