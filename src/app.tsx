@@ -13,7 +13,7 @@ import { InputSystem } from 'input/input-system';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 import { LineDebug } from 'utilities/line-debug';
-import { CapsuleCastHandler, RaycastHandler } from 'character/character-controller';
+import { CapsuleCastHandler, OverlapCapsuleHandler, RaycastHandler } from 'character/character-controller';
 import { Sphere } from '@react-three/drei';
 
 const FIXED_STEP = 1 / 60;
@@ -38,7 +38,32 @@ function Game() {
     distance: 0,
     raycaster: new THREE.Raycaster(),
   }));
+
   const collider = useCollider((state) => state.collider);
+
+  function buildCapsule(
+    radius: number,
+    height: number,
+    transform: THREE.Matrix4,
+    line: THREE.Line3,
+    origin: THREE.Vector3,
+    box?: THREE.Box3,
+  ) {
+    const halfPointHeight = height / 2 - radius;
+    origin.set(0, 0, 0);
+    line.start.set(0, halfPointHeight, 0);
+    line.end.set(0, -halfPointHeight, 0);
+    // Apply the transform to the points.
+    origin.applyMatrix4(transform);
+    line.start.applyMatrix4(transform);
+    line.end.applyMatrix4(transform);
+    // Build the box.
+    if (box) {
+      box.setFromPoints([line.start, line.end]);
+      box.min.addScalar(-radius);
+      box.max.addScalar(radius);
+    }
+  }
 
   const capsuleCast = useCallback<CapsuleCastHandler>(
     (radius, height, transform, direction, maxDistance) => {
@@ -46,18 +71,7 @@ function Game() {
       const { triPoint, capsulePoint, line, box, normal, origin } = store;
 
       // Build the capsule line segment (and two points).
-      const halfPointHeight = height / 2 - radius;
-      origin.set(0, 0, 0);
-      line.start.set(0, halfPointHeight, 0);
-      line.end.set(0, -halfPointHeight, 0);
-      // Apply the transform to the points.
-      origin.applyMatrix4(transform);
-      line.start.applyMatrix4(transform);
-      line.end.applyMatrix4(transform);
-      // Build the box.
-      box.setFromPoints([line.start, line.end]);
-      box.min.addScalar(-radius);
-      box.max.addScalar(radius);
+      buildCapsule(radius, height, transform, line, origin, box);
 
       // Iterate by the number of physics steps we want to use to avoid tunneling.
       // We'll need to do a loop and then break with the first hit. We don't want to keep iterating
@@ -123,9 +137,27 @@ function Game() {
     [collider, store],
   );
 
+  const [storeB] = useState(() => ({
+    origin: new THREE.Vector3(),
+    line: new THREE.Line3(),
+    box: new THREE.Box3(),
+  }));
+
+  const overlapCapsule = useCallback<OverlapCapsuleHandler>(
+    (radius, height, transform) => {
+      const { line, box, origin } = storeB;
+      buildCapsule(radius, height, transform, line, origin, box);
+      return [];
+    },
+    [storeB],
+  );
+
   const sphereRef = useRef<THREE.Mesh>(null!);
   useUpdate(() => {
-    if (sphereRef.current) sphereRef.current.position.copy(store.origin);
+    if (sphereRef.current) {
+      sphereRef.current.matrixAutoUpdate = false;
+      sphereRef.current.matrix.setPosition(store.triPoint);
+    }
   });
 
   return (
@@ -147,6 +179,7 @@ function Game() {
         id="player"
         capsuleCast={capsuleCast}
         raycast={raycast}
+        overlapCapsule={overlapCapsule}
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}

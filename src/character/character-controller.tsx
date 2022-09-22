@@ -36,6 +36,7 @@ export type CapsuleCastHandler = (
   maxDistance: number,
 ) => HitInfo | null;
 
+export type OverlapCapsuleHandler = (radius: number, height: number, transform: THREE.Matrix4) => THREE.Object3D[];
 export type RaycastHandler = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
 
 export type CharacterControllerProps = {
@@ -49,6 +50,7 @@ export type CharacterControllerProps = {
   rotateTime?: number;
   slopeLimit?: number;
   capsuleCast: CapsuleCastHandler;
+  overlapCapsule: OverlapCapsuleHandler;
   raycast: RaycastHandler;
 };
 
@@ -79,6 +81,7 @@ export function CharacterController({
   rotateTime = 0.1,
   capsuleCast,
   raycast,
+  overlapCapsule,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.characters.get(id), state.setCharacter]);
@@ -110,6 +113,7 @@ export function CharacterController({
   });
 
   const capsuleCastHandler = useEventHandler<typeof capsuleCast>(capsuleCast);
+  const overlapCapsuleHandler = useEventHandler<typeof overlapCapsule>(overlapCapsule);
   const raycastHandler = useEventHandler<typeof raycast>(raycast);
 
   // Get movement modifiers.
@@ -205,20 +209,36 @@ export function CharacterController({
     moveList.push(horizontal.clone());
   };
 
+  const resolveCollision = useCallback(
+    (position: THREE.Vector3) => {
+      if (!character) return;
+      // Move the (virtual) position to the hit point. (The move direction * hit distance)
+      // Then we need to get penetration information at this position.
+      const transform = new THREE.Matrix4().copy(character.matrix).setPosition(position);
+      const colliders = overlapCapsuleHandler(
+        character.boundingCapsule.radius,
+        character.boundingCapsule.height,
+        transform,
+      );
+      // We do an intersection test and make an array of all overlapping colliders at the target move position.
+      // Then loop through this array and push away from each collider to get a final direction and distance.
+      // Then calculate and return that delta vector calling another physics function ComputePenetration.
+    },
+    [character, overlapCapsuleHandler],
+  );
+
   const moveLoop = (dt: number) => {
     if (!character) return;
     const { moveList, vecA, vecB } = store;
     let index = 0;
     const virtualPosition = vecB.copy(character.position);
-    // Apply delta time to the move vector.
+    // Apply delta time to the move vectors.
     moveList.forEach((move) => move.multiplyScalar(dt));
 
     for (let i = 0; i < maxIterations; i++) {
       const currentMove = vecA.copy(moveList[index]);
 
       // Test for collision with a capsule cast in the movement direction.
-      // Height will now be whole length of the capsule.
-      // radius, height, transform, direction, maxDistance
       const hit = capsuleCastHandler(
         character.boundingCapsule.radius,
         character.boundingCapsule.height,
@@ -227,9 +247,12 @@ export function CharacterController({
         currentMove.length(),
       );
 
-      // // If there is a collision, move the character to the point of collision.
+      // If there is a collision, resolve it.
       if (hit) {
-        // const deltaVector = resolveCollision(hit);
+        const deltaDistance = Math.max(currentMove.length() - hit.distance, 0);
+        // console.log(currentMove.length(), hit.distance, currentMove.length() - hit.distance);
+        const position = new THREE.Vector3().copy(currentMove).normalize().multiplyScalar(deltaDistance);
+        resolveCollision(position);
         // virtualPosition.add(deltaVector);
         virtualPosition.add(currentMove);
       } else {
