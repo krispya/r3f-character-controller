@@ -14,6 +14,7 @@ import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
 import { LineDebug } from 'utilities/line-debug';
+import { CapsuleCastHandler, RaycastHandler } from 'character/character-controller';
 
 const FIXED_STEP = 1 / 60;
 const ITERATIONS = 5;
@@ -35,11 +36,12 @@ function Game() {
     hitDistance: 0,
     hitDirection: new THREE.Vector3(),
     collision: false,
+    raycaster: new THREE.Raycaster(),
   }));
   const collider = useCollider((state) => state.collider);
 
-  const capsuleCast = useCallback(
-    (radius: number, height: number, transform: THREE.Matrix4, direction: THREE.Vector3, maxDistance: number) => {
+  const capsuleCast = useCallback<CapsuleCastHandler>(
+    (radius, height, transform, direction, maxDistance) => {
       if (!collider?.geometry?.boundsTree) return null;
       const { triPoint, capsulePoint, line, box, hitTri } = store;
 
@@ -86,6 +88,7 @@ function Game() {
       }
 
       if (store.collision) {
+        console.log(hitTri);
         return {
           distance: store.hitDistance,
           direction: store.hitDirection,
@@ -98,11 +101,17 @@ function Game() {
     [collider, store],
   );
 
-  // Unity Raycast: Raycast(origin, direction, maxDistance, layerMask, queryTriggerInteraction) returns hitInfo
-  // Alternatievely there is Racyast(ray, maxDistance, layerMask, queryTriggerInteraction) returns hitInfo
-  // Where ray is a Ray(origin, direction) object much like Three's Raycaster.
-  // This expects to return a single hit. (The first hit.)
-  // I'll do it like the first to keep the API consistent with capsuleCast().
+  const raycast = useCallback<RaycastHandler>(
+    (origin, direction, maxDistance) => {
+      if (!collider) return null;
+      const { raycaster } = store;
+      raycaster.set(origin, direction);
+      raycaster.far = maxDistance;
+      raycaster.firstHitOnly = true;
+      return raycaster.intersectObject(collider, false);
+    },
+    [collider, store],
+  );
 
   return (
     <Suspense>
@@ -119,6 +128,7 @@ function Game() {
       <PlayerController
         id="player"
         capsuleCast={capsuleCast}
+        raycast={raycast}
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}

@@ -14,6 +14,9 @@ import { SmoothDamp } from '@gsimone/smoothdamp';
 import { notEqualToZero } from 'utilities/math';
 import { useEventHandler } from 'utilities/use-event-handler';
 
+// Three has distance, face, faceIndex, object (the collider hit), point, uv.
+// Unity has collider (object), distance, normal, point, textureCoord (uv), transform (of the collider), triangleIndex (faceIndex)
+// So the main difference is Three includes the whole triangle and Unity doesn't.
 export type HitInfo = {
   normal: THREE.Vector3;
   point: THREE.Vector3;
@@ -23,6 +26,16 @@ export type Capsule = {
   radius: number;
   height: number;
 };
+
+export type CapsuleCastHandler = (
+  radius: number,
+  height: number,
+  transform: THREE.Matrix4,
+  direction: THREE.Vector3,
+  maxDistance: number,
+) => any;
+
+export type RaycastHandler = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => any;
 
 export type CharacterControllerProps = {
   id: string;
@@ -34,13 +47,8 @@ export type CharacterControllerProps = {
   capsule?: CapsuleConfig;
   rotateTime?: number;
   slopeLimit?: number;
-  capsuleCast: (
-    radius: number,
-    height: number,
-    transform: THREE.Matrix4,
-    direction: THREE.Vector3,
-    maxDistance: number,
-  ) => any;
+  capsuleCast: CapsuleCastHandler;
+  raycast: RaycastHandler;
 };
 
 export class Character extends THREE.Object3D {
@@ -69,6 +77,7 @@ export function CharacterController({
   capsule = 'auto',
   rotateTime = 0.1,
   capsuleCast,
+  raycast,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.characters.get(id), state.setCharacter]);
@@ -83,7 +92,6 @@ export function CharacterController({
     box: new THREE.Box3(),
     line: new THREE.Line3(),
     prevLine: new THREE.Line3(),
-    raycaster: new THREE.Raycaster(),
     toggle: true,
     timer: 0,
     isGrounded: false,
@@ -101,6 +109,7 @@ export function CharacterController({
   });
 
   const capsuleCastHandler = useEventHandler<typeof capsuleCast>(capsuleCast);
+  const raycastHandler = useEventHandler<typeof raycast>(raycast);
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
@@ -128,37 +137,17 @@ export function CharacterController({
     },
   );
 
-  // Get world collider BVH.
-  const collider = useCollider((state) => state.collider);
-
-  useLayoutEffect(() => setCharacter(id, new Character(0.27, 0.27 * 2 + 1)), [setCharacter]);
-
-  const moveCharacter = useCallback(
-    (velocity: THREE.Vector3, delta: number) => {
-      character?.position.addScaledVector(velocity, delta);
-      character?.updateMatrixWorld();
-    },
-    [character],
-  );
-
-  const syncMeshToBoundingVolume = () => {
-    if (!character) return;
-    meshRef.current.position.copy(character.position);
-  };
+  useLayoutEffect(() => setCharacter(id, new Character(0.27, 0.27 * 2 + 1)), [id, setCharacter]);
 
   const detectGround = useCallback((): [boolean, THREE.Face | null] => {
-    if (!character || !collider) return [false, null];
-
-    const { raycaster, vecB: vec2 } = store;
+    if (!character) return [false, null];
+    const { vecB } = store;
     const { boundingCapsule: capsule } = character;
 
-    raycaster.set(character.position, vec2.set(0, -1, 0));
-    raycaster.far = capsule.height / 2 + groundDetectionOffset;
-    raycaster.firstHitOnly = true;
-    const res = raycaster.intersectObject(collider, false);
+    const res = raycastHandler(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
 
     return [res.length !== 0, res[0]?.face ?? null];
-  }, [character, collider, groundDetectionOffset, store]);
+  }, [character, groundDetectionOffset, raycastHandler, store]);
 
   const updateGroundedState = useCallback(() => {
     const [isGrounded, face] = detectGround();
@@ -228,12 +217,10 @@ export function CharacterController({
 
     for (let i = 0; i < maxIterations; i++) {
       const currentMove = vecA.copy(moveList[index]);
-      console.log(index, currentMove);
 
       // Test for collision with a capsule cast in the movement direction.
       // Height will now be whole length of the capsule.
       // radius, height, transform, direction, maxDistance
-      character.updateMatrix();
       const hit = capsuleCastHandler(
         character.boundingCapsule.radius,
         character.boundingCapsule.height,
@@ -340,7 +327,10 @@ export function CharacterController({
 
   // Sync mesh so movement is visible.
   useUpdate(() => {
-    syncMeshToBoundingVolume();
+    if (!character) return;
+    // We update the character matrix manually since it isn't part of the scene graph.
+    character.updateMatrix();
+    meshRef.current.position.copy(character.position);
   }, Stages.Update);
 
   // Rotate the mesh to point in the direction of movement.

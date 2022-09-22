@@ -83,7 +83,8 @@ export function PlayerController({
       capsule={props.capsule}
       rotateTime={props.rotateTime}
       slopeLimit={props.slopeLimit}
-      capsuleCast={props.capsuleCast}>
+      capsuleCast={props.capsuleCast}
+      raycast={props.raycast}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
