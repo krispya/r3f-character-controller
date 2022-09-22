@@ -1,6 +1,6 @@
 import './app.css';
-import { Canvas, Stages } from '@react-three/fiber';
-import { StrictMode, Suspense, useCallback, useLayoutEffect, useState } from 'react';
+import { Canvas, Stages, useUpdate } from '@react-three/fiber';
+import { StrictMode, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { CameraController } from 'camera/camera-controller';
 import { Fauna } from 'test-assets/fauna';
 import { Terrain } from 'test-assets/terrain';
@@ -12,9 +12,9 @@ import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
-import { ExtendedTriangle } from 'three-mesh-bvh';
 import { LineDebug } from 'utilities/line-debug';
 import { CapsuleCastHandler, RaycastHandler } from 'character/character-controller';
+import { Sphere } from '@react-three/drei';
 
 const FIXED_STEP = 1 / 60;
 const ITERATIONS = 5;
@@ -30,12 +30,12 @@ function Game() {
   const [store] = useState(() => ({
     triPoint: new THREE.Vector3(),
     capsulePoint: new THREE.Vector3(),
+    origin: new THREE.Vector3(),
     line: new THREE.Line3(),
     box: new THREE.Box3(),
-    hitTri: new ExtendedTriangle(),
-    hitDistance: 0,
-    hitDirection: new THREE.Vector3(),
     collision: false,
+    normal: new THREE.Vector3(),
+    distance: 0,
     raycaster: new THREE.Raycaster(),
   }));
   const collider = useCollider((state) => state.collider);
@@ -43,13 +43,15 @@ function Game() {
   const capsuleCast = useCallback<CapsuleCastHandler>(
     (radius, height, transform, direction, maxDistance) => {
       if (!collider?.geometry?.boundsTree) return null;
-      const { triPoint, capsulePoint, line, box, hitTri } = store;
+      const { triPoint, capsulePoint, line, box, normal, origin } = store;
 
       // Build the capsule line segment (and two points).
       const halfPointHeight = height / 2 - radius;
+      origin.set(0, 0, 0);
       line.start.set(0, halfPointHeight, 0);
       line.end.set(0, -halfPointHeight, 0);
       // Apply the transform to the points.
+      origin.applyMatrix4(transform);
       line.start.applyMatrix4(transform);
       line.end.applyMatrix4(transform);
       // Build the box.
@@ -63,21 +65,19 @@ function Game() {
 
       for (let i = 0; i < ITERATIONS; i++) {
         // Move it by the direction and max distance.
-        line.start.addScaledVector(direction, maxDistance / ITERATIONS);
-        line.end.addScaledVector(direction, maxDistance / ITERATIONS);
-        box.min.addScaledVector(direction, maxDistance / ITERATIONS);
-        box.max.addScaledVector(direction, maxDistance / ITERATIONS);
+        const delta = maxDistance / ITERATIONS;
+        line.start.addScaledVector(direction, delta);
+        line.end.addScaledVector(direction, delta);
+        box.min.addScaledVector(direction, delta);
+        box.max.addScaledVector(direction, delta);
 
         store.collision = collider.geometry.boundsTree.shapecast({
           intersectsBounds: (bounds) => bounds.intersectsBox(box),
           intersectsTriangle: (tri) => {
-            store.hitDistance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-
-            // If the store.hitDistance  is less than the radius of the character, we have a collision.
-            if (store.hitDistance < radius) {
-              const depth = radius - store.hitDistance;
-              store.hitDirection = capsulePoint.sub(triPoint).normalize();
-              hitTri.copy(tri);
+            const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
+            // If the distance  is less than the radius of the character, we have a collision.
+            if (distance < radius) {
+              tri.getNormal(normal);
               return true;
             }
             return false;
@@ -88,15 +88,14 @@ function Game() {
       }
 
       if (store.collision) {
-        console.log(hitTri);
         return {
-          distance: store.hitDistance,
-          direction: store.hitDirection,
-          triangle: hitTri,
+          collider: collider,
+          point: triPoint,
+          normal: normal,
+          distance: origin.distanceTo(triPoint),
         };
-      } else {
-        return null;
       }
+      return null;
     },
     [collider, store],
   );
@@ -104,17 +103,36 @@ function Game() {
   const raycast = useCallback<RaycastHandler>(
     (origin, direction, maxDistance) => {
       if (!collider) return null;
+
       const { raycaster } = store;
       raycaster.set(origin, direction);
       raycaster.far = maxDistance;
       raycaster.firstHitOnly = true;
-      return raycaster.intersectObject(collider, false);
+      const hit = raycaster.intersectObject(collider, false);
+
+      if (hit.length > 0 && hit[0].face) {
+        return {
+          collider: collider,
+          point: hit[0].point,
+          normal: hit[0].face.normal,
+          distance: hit[0].distance,
+        };
+      }
+      return null;
     },
     [collider, store],
   );
 
+  const sphereRef = useRef<THREE.Mesh>(null!);
+  useUpdate(() => {
+    sphereRef.current.position.copy(store.origin);
+  });
+
   return (
     <Suspense>
+      <Sphere ref={sphereRef} args={[0.05]}>
+        <meshBasicMaterial color="red" depthTest={false} />
+      </Sphere>
       <LineDebug line={store.line} />
 
       <InputSystem />

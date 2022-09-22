@@ -1,8 +1,7 @@
 import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { useCollider } from 'collider/stores/collider-store';
-import { CapsuleConfig, useBoundingVolume } from './bounding-volume/use-bounding-volume';
+import { CapsuleConfig } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
@@ -14,12 +13,14 @@ import { SmoothDamp } from '@gsimone/smoothdamp';
 import { notEqualToZero } from 'utilities/math';
 import { useEventHandler } from 'utilities/use-event-handler';
 
-// Three has distance, face, faceIndex, object (the collider hit), point, uv.
-// Unity has collider (object), distance, normal, point, textureCoord (uv), transform (of the collider), triangleIndex (faceIndex)
-// So the main difference is Three includes the whole triangle and Unity doesn't.
 export type HitInfo = {
-  normal: THREE.Vector3;
+  collider: THREE.Object3D;
   point: THREE.Vector3;
+  normal: THREE.Vector3;
+  distance: number;
+  //uv/textCoord: THREE.Vector2;
+  //triangleIndex: number;
+  //transform: THREE.Matrix4;
 };
 
 export type Capsule = {
@@ -33,9 +34,9 @@ export type CapsuleCastHandler = (
   transform: THREE.Matrix4,
   direction: THREE.Vector3,
   maxDistance: number,
-) => any;
+) => HitInfo | null;
 
-export type RaycastHandler = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => any;
+export type RaycastHandler = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
 
 export type CharacterControllerProps = {
   id: string;
@@ -139,20 +140,17 @@ export function CharacterController({
 
   useLayoutEffect(() => setCharacter(id, new Character(0.27, 0.27 * 2 + 1)), [id, setCharacter]);
 
-  const detectGround = useCallback((): [boolean, THREE.Face | null] => {
-    if (!character) return [false, null];
+  const detectGround = useCallback((): HitInfo | null => {
+    if (!character) return null;
     const { vecB } = store;
     const { boundingCapsule: capsule } = character;
-
-    const res = raycastHandler(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
-
-    return [res.length !== 0, res[0]?.face ?? null];
+    return raycastHandler(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
   }, [character, groundDetectionOffset, raycastHandler, store]);
 
   const updateGroundedState = useCallback(() => {
-    const [isGrounded, face] = detectGround();
-    store.isGrounded = isGrounded;
-    if (face) store.groundNormal.copy(face.normal);
+    const hit = detectGround();
+    store.isGrounded = hit !== null ? true : false;
+    if (hit) store.groundNormal.copy(hit.normal);
   }, [detectGround, store]);
 
   const updateMovementMode = useCallback(() => {
