@@ -229,7 +229,7 @@ export function CharacterController({
 
   const moveLoop = (dt: number) => {
     if (!character) return;
-    const { moveList, vecA, vecB } = store;
+    const { moveList, vecA, vecB, vecC } = store;
     let index = 0;
     const virtualPosition = vecB.copy(character.position);
     // Apply delta time to the move vectors.
@@ -243,15 +243,14 @@ export function CharacterController({
         character.boundingCapsule.radius,
         character.boundingCapsule.height,
         character.matrix,
-        currentMove,
+        vecC.copy(currentMove).normalize(),
         currentMove.length(),
       );
 
       // If there is a collision, resolve it.
       if (hit) {
-        const deltaDistance = Math.max(currentMove.length() - hit.distance, 0);
-        // console.log(currentMove.length(), hit.distance, currentMove.length() - hit.distance);
-        const position = new THREE.Vector3().copy(currentMove).normalize().multiplyScalar(deltaDistance);
+        const move = new THREE.Vector3().copy(currentMove).multiplyScalar(hit.distance);
+        const position = new THREE.Vector3().copy(character.position).add(move);
         resolveCollision(position);
         // virtualPosition.add(deltaVector);
         virtualPosition.add(currentMove);
