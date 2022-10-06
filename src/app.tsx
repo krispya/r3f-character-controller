@@ -14,13 +14,9 @@ import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 import { LineDebug } from 'utilities/line-debug';
 import { CapsuleCastHandler, OverlapCapsuleHandler, RaycastHandler } from 'character/character-controller';
-import { Box, Sphere } from '@react-three/drei';
+import { Sphere } from '@react-three/drei';
 import { CapsuleDebug } from 'utilities/capsule-debug';
 import { BoxDebug } from 'utilities/box-debug';
-import { OrientedBox } from 'three-mesh-bvh';
-import { OrientedBoxDebug } from 'utilities/oriented-box-debug';
-import { Matrix3 } from 'three';
-import { notEqualToZero } from 'utilities/math';
 
 const FIXED_STEP = 1 / 60;
 const ITERATIONS = 5;
@@ -64,7 +60,10 @@ function Game() {
     }
   }
 
-  // TODO: Need to test at starting position first to see if we're already colliding.
+  // TODO: Test the origin. If the origin is collided return the same as PhysX:
+  // - the reported hit distance is set to zero.
+  // - the hit normal is set to be the opposite of the ray's direction.
+  // - the hit impact position is set to the ray's origin.
 
   const capsuleCast = useCallback<CapsuleCastHandler>(
     (radius, height, transform, direction, maxDistance) => {
@@ -80,9 +79,7 @@ function Game() {
       origin.set(0, 0, 0);
       origin.applyMatrix4(transform);
 
-      // Iterate by the number of physics steps we want to use to avoid tunneling.
-      // We'll need to do a loop and then break with the first hit. We don't want to keep iterating
-      // as the later results will be useless to us.
+      // CCD is implemented using supersampling.
 
       for (let i = 0; i < ITERATIONS; i++) {
         // Move it by the direction and max distance.
@@ -120,8 +117,6 @@ function Game() {
       box.getCenter(store.capsule.position);
 
       if (store.collision) {
-        store.distanceDelta = maxDistance - origin.distanceTo(originEnd);
-        console.log(store.distanceDelta);
         return {
           collider: collider,
           point: triPoint,
@@ -132,108 +127,6 @@ function Game() {
       return null;
     },
     [collider, store],
-  );
-
-  const [storeCCD] = useState(() => ({
-    triPoint: new THREE.Vector3(),
-    capsulePoint: new THREE.Vector3(),
-    line: new THREE.Line3(),
-    originLine: new THREE.Line3(),
-    origin: new THREE.Vector3(),
-    originEnd: new THREE.Vector3(),
-    obb: new OrientedBox(new THREE.Vector3(), new THREE.Vector3()),
-    collision: false,
-    normal: new THREE.Vector3(),
-    raycaster: new THREE.Raycaster(),
-    distanceDelta: 0,
-    mat: new THREE.Matrix4(),
-    vecA: new THREE.Vector3(),
-    vecB: new THREE.Vector3(),
-    vecC: new THREE.Vector3(),
-  }));
-
-  const capsuleCastCCD = useCallback<CapsuleCastHandler>(
-    (radius, height, transform, direction, maxDistance) => {
-      if (!collider?.geometry?.boundsTree) return null;
-      const { triPoint, capsulePoint, line, obb, normal, origin, originEnd, mat, vecA, vecB, vecC, originLine } =
-        storeCCD;
-
-      // direction = new THREE.Vector3(0.35, 0, 0.5);
-      // maxDistance = 2;
-      maxDistance = maxDistance * 10;
-
-      const horizontal = vecA.set(direction.x, 0, direction.z).multiplyScalar(maxDistance);
-      const vertical = vecB.set(0, direction.y, 0).multiplyScalar(maxDistance);
-      const isHorizontalNotZero = notEqualToZero(horizontal.x) || notEqualToZero(horizontal.z);
-
-      // Build the ccd quad + box.
-      const halfPointHeight = height / 2 - radius;
-      line.start.set(0, halfPointHeight, 0);
-      line.end.set(0, -halfPointHeight, 0);
-
-      // Save the origin line for later.
-      originLine.copy(line);
-      originLine.start.applyMatrix4(transform);
-      originLine.end.applyMatrix4(transform);
-
-      if (vertical.y > 0) {
-        line.start.y = vertical.length() + halfPointHeight;
-        line.start.x = radius;
-        line.start.z = -radius;
-        line.end.x = -radius;
-        line.end.z = radius;
-      }
-      if (vertical.y < 0) {
-        line.end.y = -(vertical.length() + halfPointHeight);
-        line.start.x = radius;
-        line.start.z = -radius;
-        line.end.x = -radius;
-        line.end.z = radius;
-      }
-      if (isHorizontalNotZero) {
-        line.start.z = horizontal.length();
-        line.start.x = radius;
-        line.end.x = -radius;
-      }
-
-      // Build the box.
-      vecB.set(0, 0, 0);
-      vecA.set(0, 0, 0);
-      vecC.set(0, 0, 0);
-      direction.y = 0;
-
-      const position = vecA.setFromMatrixPosition(transform);
-      const target = vecB.applyMatrix4(transform).addScaledVector(direction, -maxDistance);
-      const up = vecC.set(0, 1, 0);
-
-      mat.setPosition(position);
-      mat.lookAt(position, target, up);
-
-      obb.set(line.start, line.end, mat);
-
-      // Check collision.
-      storeCCD.collision = collider.geometry.boundsTree.shapecast({
-        intersectsBounds: (bounds) => obb.intersectsBox(bounds),
-        intersectsTriangle: (tri) => {
-          tri.closestPointToSegment(originLine, triPoint, capsulePoint);
-          return true;
-        },
-        traverseBoundsOrder: (bounds) => {
-          return bounds.distanceToPoint(originLine.getCenter(vecC));
-        },
-      });
-
-      if (storeCCD.collision) {
-        return {
-          collider: collider,
-          point: triPoint,
-          normal: normal,
-          distance: origin.distanceTo(originEnd),
-        };
-      }
-      return null;
-    },
-    [collider, storeCCD],
   );
 
   const raycast = useCallback<RaycastHandler>(
@@ -278,8 +171,8 @@ function Game() {
   useUpdate(() => {
     if (sphereRef.current) {
       sphereRef.current.matrixAutoUpdate = false;
-      if (storeCCD.collision) sphereRef.current.matrix.setPosition(storeCCD.triPoint);
-      sphereRef.current.visible = storeCCD.collision;
+      if (store.collision) sphereRef.current.matrix.setPosition(store.triPoint);
+      sphereRef.current.visible = store.collision;
     }
     if (originRef.current) {
       originRef.current.matrixAutoUpdate = false;
@@ -303,7 +196,6 @@ function Game() {
       {/* <LineDebug line={storeCCD.originLine} /> */}
       {/* <CapsuleDebug capsule={storeCCD.capsule} /> */}
       {/* <BoxDebug box={storeCCD.box} /> */}
-      <OrientedBoxDebug box={storeCCD.obb} />
 
       <InputSystem />
 
@@ -315,7 +207,7 @@ function Game() {
 
       <PlayerController
         id="player"
-        capsuleCast={capsuleCastCCD}
+        capsuleCast={capsuleCast}
         raycast={raycast}
         overlapCapsule={overlapCapsule}
         position={[0, 2, 0]}
