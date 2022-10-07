@@ -65,6 +65,10 @@ function Game() {
   // - the hit normal is set to be the opposite of the ray's direction.
   // - the hit impact position is set to the ray's origin.
 
+  // Similarly to a raycast starting inside an object, a sweep may start with the two geometries initially intersecting.
+  // By default PhysX will detect and report the overlap.
+  // Due to algorithmic differences, a sweep query may detect a different set of initially overlapping shapes than an overlap query.
+
   const capsuleCast = useCallback<CapsuleCastHandler>(
     (radius, height, transform, direction, maxDistance) => {
       if (!collider?.geometry?.boundsTree) return null;
@@ -93,7 +97,7 @@ function Game() {
           intersectsBounds: (bounds) => bounds.intersectsBox(box),
           intersectsTriangle: (tri) => {
             const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-            // If the distance  is less than the radius of the character, we have a collision.
+            // If the distance is less than the radius of the character, we have a collision.
             if (distance < radius) {
               const depth = radius - distance;
               const direction = capsulePoint.sub(triPoint).normalize();
@@ -129,6 +133,9 @@ function Game() {
     [collider, store],
   );
 
+  // TODO: Make sure these raycasts return the proper collision info if
+  // the origin is inside a shape (like capsule).
+
   const raycast = useCallback<RaycastHandler>(
     (origin, direction, maxDistance) => {
       if (!collider) return null;
@@ -156,6 +163,12 @@ function Game() {
     line: new THREE.Line3(),
     box: new THREE.Box3(),
   }));
+
+  // PhysX: Overlaps do not support hit flags and return only a boolean result.
+  // PhysX: A sweep of length 0 is equivalent to an overlap check.
+  // Basically, Do a capsuleCast at origin only but we only return the collided boolean.
+  // No further calculatiosn necessary. This is how it will work for us but reading further,
+  // PhysX actually uses a different algorithm here.
 
   const overlapCapsule = useCallback<OverlapCapsuleHandler>(
     (radius, height, transform) => {
