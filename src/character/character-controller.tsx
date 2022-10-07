@@ -338,10 +338,6 @@ export function CharacterController({
     calculateMovement();
     decomposeMovement();
     moveLoop(dt);
-
-    // for (let i = 0; i < iterations; i++) {
-    //   step(delta / iterations);
-    // }
   }, Stages.Fixed);
 
   // Sync mesh so movement is visible.

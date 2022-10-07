@@ -60,14 +60,9 @@ function Game() {
     }
   }
 
-  // TODO: Test the origin. If the origin is collided return the same as PhysX:
-  // - the reported hit distance is set to zero.
-  // - the hit normal is set to be the opposite of the ray's direction.
-  // - the hit impact position is set to the ray's origin.
-
-  // Similarly to a raycast starting inside an object, a sweep may start with the two geometries initially intersecting.
-  // By default PhysX will detect and report the overlap.
-  // Due to algorithmic differences, a sweep query may detect a different set of initially overlapping shapes than an overlap query.
+  // Does an initial overlap test and returns and MTD in all cases.
+  // May want to add an option to do not MTD if there is an initial overlap.
+  // https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxguide/Manual/GeometryQueries.html#initial-overlaps
 
   const capsuleCast = useCallback<CapsuleCastHandler>(
     (radius, height, transform, direction, maxDistance) => {
@@ -84,14 +79,16 @@ function Game() {
       origin.applyMatrix4(transform);
 
       // CCD is implemented using supersampling.
+      const delta = maxDistance / ITERATIONS;
 
-      for (let i = 0; i < ITERATIONS; i++) {
-        // Move it by the direction and max distance.
-        const delta = maxDistance / ITERATIONS;
-        line.start.addScaledVector(direction, delta);
-        line.end.addScaledVector(direction, delta);
-        box.min.addScaledVector(direction, delta);
-        box.max.addScaledVector(direction, delta);
+      for (let i = 0; i < ITERATIONS + 1; i++) {
+        // Test origin first, then move capsule by the direction and max distance.
+        if (i !== 0) {
+          line.start.addScaledVector(direction, delta);
+          line.end.addScaledVector(direction, delta);
+          box.min.addScaledVector(direction, delta);
+          box.max.addScaledVector(direction, delta);
+        }
 
         store.collision = collider.geometry.boundsTree.shapecast({
           intersectsBounds: (bounds) => bounds.intersectsBox(box),
@@ -207,7 +204,7 @@ function Game() {
         <meshBasicMaterial color="blue" depthTest={false} />
       </Sphere> */}
       {/* <LineDebug line={storeCCD.originLine} /> */}
-      {/* <CapsuleDebug capsule={storeCCD.capsule} /> */}
+      <CapsuleDebug capsule={store.capsule} />
       {/* <BoxDebug box={storeCCD.box} /> */}
 
       <InputSystem />
