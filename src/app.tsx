@@ -39,6 +39,7 @@ function Game() {
     box: new THREE.Box3(),
     collision: false,
     normal: new THREE.Vector3(),
+    distance: 0,
     raycaster: new THREE.Raycaster(),
     distanceDelta: 0,
   }));
@@ -102,9 +103,17 @@ function Game() {
               // Move the line segment so there is no longer an intersection.
               line.start.addScaledVector(direction, depth);
               line.end.addScaledVector(direction, depth);
+              box.min.addScaledVector(direction, depth);
+              box.max.addScaledVector(direction, depth);
+
+              // console.log('mOrigin: ', new THREE.Vector3().copy(origin).addScaledVector(direction, depth));
 
               line.getCenter(originEnd);
+              if (i === 0) store.distance = depth;
+              else store.distance = origin.distanceTo(originEnd);
+
               tri.getNormal(normal);
+
               return true;
             }
             return false;
@@ -116,13 +125,20 @@ function Game() {
 
       // Debug
       box.getCenter(store.capsule.position);
+      // console.log('line: ', originEnd);
+      console.log('box: ', box.getCenter(store.capsule.position));
+
+      // const move = new THREE.Vector3().copy(direction).multiplyScalar(store.distance);
+      // const position = new THREE.Vector3().copy(origin).add(move);
+      const position = new THREE.Vector3().copy(origin).addScaledVector(direction, store.distance);
+      console.log('recalc: ', position);
 
       if (store.collision) {
         return {
           collider: collider,
           point: triPoint,
           normal: normal,
-          distance: origin.distanceTo(originEnd),
+          distance: store.distance,
         };
       }
       return null;
@@ -178,6 +194,7 @@ function Game() {
 
   const sphereRef = useRef<THREE.Mesh>(null!);
   const originRef = useRef<THREE.Mesh>(null!);
+
   useUpdate(() => {
     if (sphereRef.current) {
       sphereRef.current.matrixAutoUpdate = false;
@@ -205,7 +222,7 @@ function Game() {
       </Sphere> */}
       {/* <LineDebug line={storeCCD.originLine} /> */}
       <CapsuleDebug capsule={store.capsule} />
-      {/* <BoxDebug box={storeCCD.box} /> */}
+      <BoxDebug box={store.box} />
 
       <InputSystem />
 

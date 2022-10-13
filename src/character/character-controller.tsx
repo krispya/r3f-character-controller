@@ -237,20 +237,22 @@ export function CharacterController({
 
     for (let i = 0; i < maxIterations; i++) {
       const currentMove = vecA.copy(moveList[index]);
+      const moveDirection = vecC.copy(currentMove).normalize();
 
       // Test for collision with a capsule cast in the movement direction.
       const hit = capsuleCastHandler(
         character.boundingCapsule.radius,
         character.boundingCapsule.height,
         character.matrix,
-        vecC.copy(currentMove).normalize(),
+        moveDirection,
         currentMove.length(),
       );
 
       // If there is a collision, resolve it.
       if (hit) {
-        const move = new THREE.Vector3().copy(currentMove).multiplyScalar(hit.distance);
+        const move = new THREE.Vector3().copy(moveDirection).multiplyScalar(hit.distance);
         const position = new THREE.Vector3().copy(character.position).add(move);
+        // console.log('recalc: ', position);
         resolveCollision(position);
         // virtualPosition.add(deltaVector);
         virtualPosition.add(currentMove);
