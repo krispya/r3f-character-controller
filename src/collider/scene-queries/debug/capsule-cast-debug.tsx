@@ -1,0 +1,107 @@
+import { createPortal, useThree, useUpdate } from '@react-three/fiber';
+import { useRef, useState } from 'react';
+import { CapsuleCastParams, HitInfo } from '../capsule-cast';
+import { CapsuleWireframe } from './capsule-wireframe';
+import { RayWireframe } from './ray-wireframe';
+import * as THREE from 'three';
+import { Sphere } from '@react-three/drei';
+
+type CapsuleCastDebugProps = CapsuleCastParams & { hitInfoRef: React.MutableRefObject<HitInfo | null> };
+
+export function CapsuleCastDebug({
+  radius,
+  halfHeight,
+  transform,
+  direction,
+  maxDistance,
+  hitInfoRef,
+}: CapsuleCastDebugProps) {
+  const capOriginRef = useRef<THREE.Group>(null!);
+  const capHitRef = useRef<THREE.Group>(null!);
+  const capEndRef = useRef<THREE.Group>(null!);
+  const pointRef = useRef<THREE.Mesh>(null!);
+  const raySplitRef = useRef<THREE.Group>(null!);
+
+  const scene = useThree((state) => state.scene);
+  const [isInit, setIsInit] = useState(false);
+  const [store] = useState({ hitDistance: 0, splitOrigin: new THREE.Vector3(), splitDistance: 0 });
+
+  useUpdate(() => {
+    const capOrigin = capOriginRef.current;
+    const capEnd = capEndRef.current;
+    const capHit = capHitRef.current;
+    const point = pointRef.current;
+    const raySplit = raySplitRef.current;
+    const hitInfo = hitInfoRef.current;
+
+    capOrigin.matrix.copy(transform);
+    capOrigin.matrix.decompose(capOrigin.position, capOrigin.quaternion, capOrigin.scale);
+
+    capEnd.position.copy(capOrigin.position);
+    capEnd.position.addScaledVector(direction, maxDistance);
+    capEnd.updateMatrix();
+
+    if (hitInfo) {
+      capEnd.visible = true;
+      point.visible = true;
+      if (raySplit) raySplit.visible = true;
+
+      point.position.copy(hitInfo.point);
+
+      store.hitDistance = hitInfo.distance;
+      store.splitDistance = maxDistance - store.hitDistance;
+
+      store.splitOrigin.copy(capOriginRef.current.position);
+      store.splitOrigin.addScaledVector(direction, store.hitDistance);
+
+      capHit.position.copy(point.position);
+      capHit.updateMatrix();
+    } else {
+      capEnd.visible = false;
+      point.visible = false;
+      if (raySplit) raySplit.visible = false;
+
+      store.hitDistance = maxDistance;
+    }
+
+    setIsInit(true);
+  });
+
+  return (
+    <>
+      {createPortal(
+        <>
+          <CapsuleWireframe ref={capOriginRef} radius={radius} halfHeight={halfHeight} matrixAutoUpdate={false} />
+          <CapsuleWireframe ref={capHitRef} radius={radius} halfHeight={halfHeight} matrixAutoUpdate={false} />
+          <CapsuleWireframe
+            ref={capEndRef}
+            color="green"
+            radius={radius}
+            halfHeight={halfHeight}
+            matrixAutoUpdate={false}
+          />
+
+          {isInit && (
+            <>
+              <RayWireframe origin={capOriginRef.current.position} direction={direction} distance={store.hitDistance} />
+              <group ref={raySplitRef}>
+                <RayWireframe
+                  color="green"
+                  origin={store.splitOrigin}
+                  direction={direction}
+                  distance={store.splitDistance}
+                />
+              </group>
+            </>
+          )}
+          {hitInfoRef && (
+            <Sphere ref={pointRef} args={[0.075]} position={hitInfoRef.current?.point}>
+              <meshBasicMaterial color="red" />
+            </Sphere>
+          )}
+        </>,
+        scene,
+      )}
+    </>
+  );
+}

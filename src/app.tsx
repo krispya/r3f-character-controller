@@ -17,7 +17,7 @@ import { CapsuleCastHandler, OverlapCapsuleHandler, RaycastHandler } from 'chara
 import { Sphere } from '@react-three/drei';
 import { CapsuleDebug } from 'utilities/capsule-debug';
 import { BoxDebug } from 'utilities/box-debug';
-import { capsuleCast } from 'collider/scene-queries/capsuleCast';
+import { capsuleCast } from 'collider/scene-queries/capsule-cast';
 import { CastTest } from 'test-assets/cast-test';
 
 const FIXED_STEP = 1 / 60;
@@ -149,11 +149,11 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
-      <CastTest position={[6.25, -1.5, -9]} />
+      <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.5} />
 
       <PlayerController
         id="player"
-        capsuleCast={capsuleCast as CapsuleCastHandler}
+        capsuleCast={(() => null) as CapsuleCastHandler}
         raycast={raycast}
         overlapCapsule={overlapCapsule}
         position={[0, 2, 0]}

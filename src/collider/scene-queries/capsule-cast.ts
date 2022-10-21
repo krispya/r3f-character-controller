@@ -2,20 +2,27 @@ import { Capsule } from 'collider/geometry/capsule';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 
-type HitInfo = {
+export type HitInfo = {
   collider: THREE.Object3D;
   point: THREE.Vector3;
   normal: THREE.Vector3;
   distance: number;
 };
 
+export type CapsuleCastParams = {
+  radius: number;
+  halfHeight: number;
+  transform: THREE.Matrix4;
+  direction: THREE.Vector3;
+  maxDistance: number;
+};
+
 export type CapsuleCastFn = (
   radius: number,
-  height: number,
+  halfHeight: number,
   transform: THREE.Matrix4,
   direction: THREE.Vector3,
   maxDistance: number,
-  debug?: boolean,
 ) => HitInfo | null;
 
 const ITERATIONS = 5;
@@ -30,10 +37,9 @@ const store = {
   origin: new THREE.Vector3(),
   originEnd: new THREE.Vector3(),
   collision: false,
-  distanceDelta: 0,
 };
 
-export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direction, maxDistance, debug) => {
+export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direction, maxDistance) => {
   const { capsule, triPoint, capsulePoint, line, aabb, normal, origin, originEnd } = store;
 
   // Right now assumes a single collider. We exit if it doesn't have its BVH built yet.
@@ -46,6 +52,10 @@ export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direct
   capsule.toSegment(line);
 
   line.applyMatrix4(transform);
+
+  aabb.setFromPoints([line.start, line.end]);
+  aabb.min.addScalar(-radius);
+  aabb.max.addScalar(radius);
 
   origin.set(0, 0, 0);
   origin.applyMatrix4(transform);
@@ -87,7 +97,6 @@ export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direct
   }
 
   if (store.collision) {
-    store.distanceDelta = maxDistance - origin.distanceTo(originEnd);
     return {
       collider: collider,
       point: triPoint,
