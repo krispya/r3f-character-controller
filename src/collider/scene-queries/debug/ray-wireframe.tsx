@@ -36,8 +36,6 @@ export function RayWireframe({ color = 'red', origin, direction, distance }: Ray
       _distance = distance.current;
     }
 
-    console.log(_distance);
-
     farPoint.copy(origin);
     farPoint.addScaledVector(direction, _distance);
     store.lineGeo.setPositions([origin.x, origin.y, origin.z, farPoint.x, farPoint.y, farPoint.z]);
