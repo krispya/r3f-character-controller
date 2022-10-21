@@ -20,12 +20,11 @@ export function CastTest({ position, radius = 0.25, halfHeight = 0.25, autoUpdat
   const [isInit, setIsInit] = useState(false);
 
   useEffect(() => {
-    if (autoUpdate) return;
-
-    applyProps(ref.current as unknown as Instance, { position });
-    ref.current.updateMatrix();
-    hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, store.maxDistance);
-
+    if (!autoUpdate) {
+      applyProps(ref.current as unknown as Instance, { position });
+      ref.current.updateMatrix();
+      hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, store.maxDistance);
+    }
     setIsInit(true);
   }, [halfHeight, isInit, radius, store, position, autoUpdate]);
 
