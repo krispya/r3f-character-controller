@@ -17,6 +17,8 @@ import { CapsuleCastHandler, OverlapCapsuleHandler, RaycastHandler } from 'chara
 import { Sphere } from '@react-three/drei';
 import { CapsuleDebug } from 'utilities/capsule-debug';
 import { BoxDebug } from 'utilities/box-debug';
+import { capsuleCast } from 'collider/scene-queries/capsuleCast';
+import { CastTest } from 'test-assets/cast-test';
 
 const FIXED_STEP = 1 / 60;
 const ITERATIONS = 5;
@@ -60,91 +62,6 @@ function Game() {
       box.max.addScalar(radius);
     }
   }
-
-  // Does an initial overlap test and returns and MTD in all cases.
-  // May want to add an option to do not MTD if there is an initial overlap.
-  // https://gameworksdocs.nvidia.com/PhysX/4.1/documentation/physxguide/Manual/GeometryQueries.html#initial-overlaps
-
-  const capsuleCast = useCallback<CapsuleCastHandler>(
-    (radius, height, transform, direction, maxDistance) => {
-      if (!collider?.geometry?.boundsTree) return null;
-      const { triPoint, capsulePoint, line, box, normal, origin, originEnd } = store;
-
-      // Debug
-      store.capsule.radius = radius;
-      store.capsule.height = height;
-
-      // Build the capsule line segment (and two points).
-      buildCapsule(radius, height, transform, line, box);
-      origin.set(0, 0, 0);
-      origin.applyMatrix4(transform);
-
-      // CCD is implemented using supersampling.
-      const delta = maxDistance / ITERATIONS;
-
-      for (let i = 0; i < ITERATIONS + 1; i++) {
-        // Test origin first, then move capsule by the direction and max distance.
-        if (i !== 0) {
-          line.start.addScaledVector(direction, delta);
-          line.end.addScaledVector(direction, delta);
-          box.min.addScaledVector(direction, delta);
-          box.max.addScaledVector(direction, delta);
-        }
-
-        store.collision = collider.geometry.boundsTree.shapecast({
-          intersectsBounds: (bounds) => bounds.intersectsBox(box),
-          intersectsTriangle: (tri) => {
-            const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-            // If the distance is less than the radius of the character, we have a collision.
-            if (distance < radius) {
-              const depth = radius - distance;
-              const direction = capsulePoint.sub(triPoint).normalize();
-
-              // Move the line segment so there is no longer an intersection.
-              line.start.addScaledVector(direction, depth);
-              line.end.addScaledVector(direction, depth);
-              box.min.addScaledVector(direction, depth);
-              box.max.addScaledVector(direction, depth);
-
-              // console.log('mOrigin: ', new THREE.Vector3().copy(origin).addScaledVector(direction, depth));
-
-              line.getCenter(originEnd);
-              if (i === 0) store.distance = depth;
-              else store.distance = origin.distanceTo(originEnd);
-
-              tri.getNormal(normal);
-
-              return true;
-            }
-            return false;
-          },
-        });
-
-        if (store.collision) break;
-      }
-
-      // Debug
-      box.getCenter(store.capsule.position);
-      // console.log('line: ', originEnd);
-      console.log('box: ', box.getCenter(store.capsule.position));
-
-      // const move = new THREE.Vector3().copy(direction).multiplyScalar(store.distance);
-      // const position = new THREE.Vector3().copy(origin).add(move);
-      const position = new THREE.Vector3().copy(origin).addScaledVector(direction, store.distance);
-      console.log('recalc: ', position);
-
-      if (store.collision) {
-        return {
-          collider: collider,
-          point: triPoint,
-          normal: normal,
-          distance: store.distance,
-        };
-      }
-      return null;
-    },
-    [collider, store],
-  );
 
   // TODO: Make sure these raycasts return the proper collision info if
   // the origin is inside a shape (like capsule).
@@ -214,15 +131,15 @@ function Game() {
 
   return (
     <Suspense>
-      <Sphere ref={sphereRef} args={[0.05]}>
+      {/* <Sphere ref={sphereRef} args={[0.05]}>
         <meshBasicMaterial color="red" depthTest={true} />
-      </Sphere>
+      </Sphere> */}
       {/*<Sphere ref={originRef} args={[0.05]}>
         <meshBasicMaterial color="blue" depthTest={false} />
       </Sphere> */}
       {/* <LineDebug line={storeCCD.originLine} /> */}
-      <CapsuleDebug capsule={store.capsule} />
-      <BoxDebug box={store.box} />
+      {/* <CapsuleDebug capsule={store.capsule} /> */}
+      {/* <BoxDebug box={store.box} /> */}
 
       <InputSystem />
 
@@ -232,9 +149,11 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
+      <CastTest position={[6.25, -1.5, -9]} />
+
       <PlayerController
         id="player"
-        capsuleCast={capsuleCast}
+        capsuleCast={capsuleCast as CapsuleCastHandler}
         raycast={raycast}
         overlapCapsule={overlapCapsule}
         position={[0, 2, 0]}

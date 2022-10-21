@@ -242,7 +242,7 @@ export function CharacterController({
       // Test for collision with a capsule cast in the movement direction.
       const hit = capsuleCastHandler(
         character.boundingCapsule.radius,
-        character.boundingCapsule.height,
+        character.boundingCapsule.height / 2,
         character.matrix,
         moveDirection,
         currentMove.length(),
