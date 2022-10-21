@@ -25,6 +25,8 @@ export function CapsuleCastDebug({
   const scene = useThree((state) => state.scene);
   const [isInit, setIsInit] = useState(false);
   const [store] = useState({ hitDistance: 0, splitOrigin: new THREE.Vector3(), splitDistance: 0 });
+  const hitDistanceRef = useRef(store.hitDistance);
+  const splitDistanceRef = useRef(store.splitDistance);
 
   useUpdate(() => {
     const capOrigin = capOriginRef.current;
@@ -49,7 +51,10 @@ export function CapsuleCastDebug({
       point.position.copy(hitInfo.point);
 
       store.hitDistance = hitInfo.distance;
+      hitDistanceRef.current = store.hitDistance;
+
       store.splitDistance = maxDistance - store.hitDistance;
+      splitDistanceRef.current = store.splitDistance;
 
       store.splitOrigin.copy(capOriginRef.current.position);
       store.splitOrigin.addScaledVector(direction, store.hitDistance);
@@ -67,6 +72,8 @@ export function CapsuleCastDebug({
     setIsInit(true);
   });
 
+  console.log(store.hitDistance, store.splitDistance);
+
   return (
     <>
       {createPortal(
@@ -83,13 +90,13 @@ export function CapsuleCastDebug({
 
           {isInit && (
             <>
-              <RayWireframe origin={capOriginRef.current.position} direction={direction} distance={store.hitDistance} />
+              <RayWireframe origin={capOriginRef.current.position} direction={direction} distance={hitDistanceRef} />
               <group ref={raySplitRef}>
                 <RayWireframe
                   color="green"
                   origin={store.splitOrigin}
                   direction={direction}
-                  distance={store.splitDistance}
+                  distance={splitDistanceRef}
                 />
               </group>
             </>

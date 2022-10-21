@@ -149,7 +149,7 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
-      <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.5} />
+      <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.5} autoUpdate />
 
       <PlayerController
         id="player"

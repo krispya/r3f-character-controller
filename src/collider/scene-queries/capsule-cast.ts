@@ -25,7 +25,7 @@ export type CapsuleCastFn = (
   maxDistance: number,
 ) => HitInfo | null;
 
-const ITERATIONS = 5;
+const ITERATIONS = 20;
 
 const store = {
   capsule: new Capsule(),

@@ -17,7 +17,7 @@ type RayWireframeProps = {
   color?: Color;
   origin: THREE.Vector3;
   direction: THREE.Vector3;
-  distance: number;
+  distance: number | React.MutableRefObject<number>;
 };
 
 export function RayWireframe({ color = 'red', origin, direction, distance }: RayWireframeProps) {
@@ -28,10 +28,22 @@ export function RayWireframe({ color = 'red', origin, direction, distance }: Ray
 
   useUpdate(() => {
     const { farPoint } = store;
+    let _distance = 0;
+
+    if (typeof distance === 'number') {
+      _distance = distance;
+    } else {
+      _distance = distance.current;
+    }
+
+    console.log(_distance);
+
     farPoint.copy(origin);
-    farPoint.addScaledVector(direction, distance);
+    farPoint.addScaledVector(direction, _distance);
     store.lineGeo.setPositions([origin.x, origin.y, origin.z, farPoint.x, farPoint.y, farPoint.z]);
   });
+
+  console.log('ray: ', distance);
 
   return (
     <line2 geometry={store.lineGeo}>
