@@ -41,8 +41,6 @@ export function RayWireframe({ color = 'red', origin, direction, distance }: Ray
     store.lineGeo.setPositions([origin.x, origin.y, origin.z, farPoint.x, farPoint.y, farPoint.z]);
   });
 
-  console.log('ray: ', distance);
-
   return (
     <line2 geometry={store.lineGeo}>
       <lineMaterial attach="material" color={color} linewidth={0.002} />

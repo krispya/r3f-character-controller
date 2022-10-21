@@ -72,8 +72,6 @@ export function CapsuleCastDebug({
     setIsInit(true);
   });
 
-  console.log(store.hitDistance, store.splitDistance);
-
   return (
     <>
       {createPortal(
