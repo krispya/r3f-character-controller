@@ -1,13 +1,7 @@
 import { Capsule } from 'collider/geometry/capsule';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
-
-export type HitInfo = {
-  collider: THREE.Object3D;
-  point: THREE.Vector3;
-  normal: THREE.Vector3;
-  distance: number;
-};
+import { HitInfo } from './raycast';
 
 export type CapsuleCastParams = {
   radius: number;
@@ -25,68 +19,81 @@ export type CapsuleCastFn = (
   maxDistance: number,
 ) => HitInfo | null;
 
-const ITERATIONS = 20;
+const MAX_STEPS = 20;
+const OVERLAP_RATIO = 0.2;
+const MAX_FIT_ITERATIONS = 5;
+const FIT_TOLERANCE = 0.01;
 
 const store = {
   capsule: new Capsule(),
+  point: new THREE.Vector3(),
   triPoint: new THREE.Vector3(),
   capsulePoint: new THREE.Vector3(),
-  line: new THREE.Line3(),
+  segment: new THREE.Line3(),
   aabb: new THREE.Box3(),
   normal: new THREE.Vector3(),
-  origin: new THREE.Vector3(),
-  originEnd: new THREE.Vector3(),
+  castStart: new THREE.Vector3(),
+  castEnd: new THREE.Vector3(),
   collision: false,
+  inverseDirection: new THREE.Vector3(),
 };
 
 export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direction, maxDistance) => {
-  const { capsule, triPoint, capsulePoint, line, aabb, normal, origin, originEnd } = store;
+  const { capsule, point, triPoint, capsulePoint, segment, aabb, normal, castStart, castEnd, inverseDirection } = store;
+  const diameter = radius * 2;
+  inverseDirection.copy(direction).negate();
 
   // Right now assumes a single collider. We exit if it doesn't have its BVH built yet.
   const collider = useCollider.getState().collider;
   if (!collider?.geometry?.boundsTree) return null;
 
   capsule.set(radius, halfHeight);
-  // If the capsule isn't valid, bail out.
   if (!capsule.isValid) return null;
-  capsule.toSegment(line);
 
-  line.applyMatrix4(transform);
+  capsule.toSegment(segment);
+  segment.applyMatrix4(transform);
 
-  aabb.setFromPoints([line.start, line.end]);
+  aabb.setFromPoints([segment.start, segment.end]);
   aabb.min.addScalar(-radius);
   aabb.max.addScalar(radius);
 
-  origin.set(0, 0, 0);
-  origin.applyMatrix4(transform);
+  castStart.set(0, 0, 0);
+  castStart.applyMatrix4(transform);
 
-  // Iterate by the number of physics steps we want to use to avoid tunneling.
-  // We'll need to do a loop and then break with the first hit. We don't want to keep iterating
-  // as the later results will be useless to us.
+  const steps = Math.min(maxDistance / (diameter - diameter * OVERLAP_RATIO), MAX_STEPS);
 
-  for (let i = 0; i < ITERATIONS; i++) {
+  for (let i = 0; i < steps; i++) {
     // Move it by the direction and max distance.
-    const delta = maxDistance / ITERATIONS;
-    line.start.addScaledVector(direction, delta);
-    line.end.addScaledVector(direction, delta);
+    const delta = maxDistance / steps;
+    segment.start.addScaledVector(direction, delta);
+    segment.end.addScaledVector(direction, delta);
     aabb.min.addScaledVector(direction, delta);
     aabb.max.addScaledVector(direction, delta);
 
     store.collision = collider.geometry.boundsTree.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(aabb),
       intersectsTriangle: (tri) => {
-        const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-        // If the distance  is less than the radius of the character, we have a collision.
+        const distance = tri.closestPointToSegment(segment, triPoint, capsulePoint);
+        // If the distance is less than the radius of the capsule, we have a collision.
+
         if (distance < radius) {
-          const depth = radius - distance;
-          const direction = capsulePoint.sub(triPoint).normalize();
+          // Loop until the intersection is accurate. On sloped surfaces the first iteration isn't accurate
+          // because of the nature of the segment-triangle closest point test.
+          for (let j = 0; j < MAX_FIT_ITERATIONS; j++) {
+            let _distance = distance;
+            if (j !== 0) _distance = tri.closestPointToSegment(segment, triPoint, capsulePoint);
+            const depth = radius - _distance;
 
-          // Move the line segment so there is no longer an intersection.
-          line.start.addScaledVector(direction, depth);
-          line.end.addScaledVector(direction, depth);
+            segment.start.addScaledVector(inverseDirection, depth);
+            segment.end.addScaledVector(inverseDirection, depth);
 
-          line.getCenter(originEnd);
+            if (depth < FIT_TOLERANCE) break;
+          }
+
+          point.copy(triPoint);
+          segment.getCenter(castEnd);
           tri.getNormal(normal);
+
           return true;
         }
         return false;
@@ -99,9 +106,10 @@ export const capsuleCast: CapsuleCastFn = (radius, halfHeight, transform, direct
   if (store.collision) {
     return {
       collider: collider,
-      point: triPoint,
+      point: point,
       normal: normal,
-      distance: origin.distanceTo(originEnd),
+      distance: castStart.distanceTo(castEnd),
+      location: castEnd,
     };
   }
   return null;

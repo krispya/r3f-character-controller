@@ -18,9 +18,7 @@ export type HitInfo = {
   point: THREE.Vector3;
   normal: THREE.Vector3;
   distance: number;
-  //uv/textCoord: THREE.Vector2;
-  //triangleIndex: number;
-  //transform: THREE.Matrix4;
+  location: THREE.Vector3;
 };
 
 export type Capsule = {
@@ -28,7 +26,7 @@ export type Capsule = {
   height: number;
 };
 
-export type CapsuleCastHandler = (
+export type CapsuleCastFn = (
   radius: number,
   height: number,
   transform: THREE.Matrix4,
@@ -36,8 +34,8 @@ export type CapsuleCastHandler = (
   maxDistance: number,
 ) => HitInfo | null;
 
-export type OverlapCapsuleHandler = (radius: number, height: number, transform: THREE.Matrix4) => THREE.Object3D[];
-export type RaycastHandler = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
+export type OverlapCapsuleFn = (radius: number, height: number, transform: THREE.Matrix4) => THREE.Object3D[];
+export type RaycastFn = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
 
 export type CharacterControllerProps = {
   id: string;
@@ -49,9 +47,9 @@ export type CharacterControllerProps = {
   capsule?: CapsuleConfig;
   rotateTime?: number;
   slopeLimit?: number;
-  capsuleCast: CapsuleCastHandler;
-  overlapCapsule: OverlapCapsuleHandler;
-  raycast: RaycastHandler;
+  capsuleCast: CapsuleCastFn;
+  overlapCapsule: OverlapCapsuleFn;
+  raycast: RaycastFn;
 };
 
 export class Character extends THREE.Object3D {
@@ -212,7 +210,7 @@ export function CharacterController({
   const resolveCollision = useCallback(
     (position: THREE.Vector3) => {
       if (!character) return;
-      // Move the (virtual) position to the hit point. (The move direction * hit distance)
+      // Move the (virtual) position to the hit point.
       // Then we need to get penetration information at this position.
       const transform = new THREE.Matrix4().copy(character.matrix).setPosition(position);
       const colliders = overlapCapsuleHandler(
@@ -250,10 +248,7 @@ export function CharacterController({
 
       // If there is a collision, resolve it.
       if (hit) {
-        const move = new THREE.Vector3().copy(moveDirection).multiplyScalar(hit.distance);
-        const position = new THREE.Vector3().copy(character.position).add(move);
-        // console.log('recalc: ', position);
-        resolveCollision(position);
+        resolveCollision(hit.location);
         // virtualPosition.add(deltaVector);
         virtualPosition.add(currentMove);
       } else {

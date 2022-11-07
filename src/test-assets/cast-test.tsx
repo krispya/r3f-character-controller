@@ -1,8 +1,9 @@
 import { Sphere } from '@react-three/drei';
 import { applyProps, useUpdate, Vector3 } from '@react-three/fiber';
 import { Instance } from '@react-three/fiber/dist/declarations/src/core/renderer';
-import { capsuleCast, HitInfo } from 'collider/scene-queries/capsule-cast';
+import { capsuleCast } from 'collider/scene-queries/capsule-cast';
 import { CapsuleCastDebug } from 'collider/scene-queries/debug/capsule-cast-debug';
+import { HitInfo } from 'collider/scene-queries/raycast';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -10,27 +11,40 @@ type CastTestProps = {
   position?: Vector3;
   radius?: number;
   halfHeight?: number;
+  maxDistance?: number;
+  direction?: [number, number, number];
   autoUpdate?: boolean;
 };
 
-export function CastTest({ position, radius = 0.25, halfHeight = 0.25, autoUpdate = false }: CastTestProps) {
+export function CastTest({
+  position,
+  radius = 0.25,
+  halfHeight = 0.25,
+  maxDistance = 6,
+  autoUpdate = false,
+  direction = [0, 0, -1],
+}: CastTestProps) {
   const ref = useRef<THREE.Mesh>(null!);
   const hitInfoRef = useRef<HitInfo | null>(null);
-  const [store] = useState({ direction: new THREE.Vector3(0, 0, -1), maxDistance: 8 });
+  const [store] = useState({ direction: new THREE.Vector3(...direction) });
   const [isInit, setIsInit] = useState(false);
 
   useEffect(() => {
     if (!autoUpdate) {
       applyProps(ref.current as unknown as Instance, { position });
       ref.current.updateMatrix();
-      hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, store.maxDistance);
+      hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
     }
     setIsInit(true);
-  }, [halfHeight, isInit, radius, store, position, autoUpdate]);
+  }, [halfHeight, isInit, radius, store, position, autoUpdate, maxDistance]);
+
+  useEffect(() => {
+    store.direction.set(...direction);
+  }, [direction, store]);
 
   useUpdate(() => {
     if (!autoUpdate) return;
-    hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, store.maxDistance);
+    hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
   });
 
   return (
@@ -44,7 +58,7 @@ export function CastTest({ position, radius = 0.25, halfHeight = 0.25, autoUpdat
           halfHeight={halfHeight}
           transform={ref.current.matrix}
           direction={store.direction}
-          maxDistance={store.maxDistance}
+          maxDistance={maxDistance}
           hitInfoRef={hitInfoRef}
         />
       )}

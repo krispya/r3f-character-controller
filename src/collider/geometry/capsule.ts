@@ -25,8 +25,9 @@ export class Capsule {
 
   toSegment(line?: THREE.Line3) {
     line = line ?? new THREE.Line3();
-    line.start.set(0, this.halfHeight, 0);
-    line.end.set(0, -this.halfHeight, 0);
+    const halfSegment = this.halfHeight - this.radius;
+    line.start.set(0, halfSegment, 0);
+    line.end.set(0, -halfSegment, 0);
     return line;
   }
 }

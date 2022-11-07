@@ -59,7 +59,7 @@ export function CapsuleCastDebug({
       store.splitOrigin.copy(capOriginRef.current.position);
       store.splitOrigin.addScaledVector(direction, store.hitDistance);
 
-      capHit.position.copy(point.position);
+      capHit.position.copy(hitInfo.location);
       capHit.updateMatrix();
     } else {
       capEnd.visible = false;
@@ -100,7 +100,7 @@ export function CapsuleCastDebug({
             </>
           )}
           {hitInfoRef && (
-            <Sphere ref={pointRef} args={[0.075]} position={hitInfoRef.current?.point}>
+            <Sphere ref={pointRef} args={[0.05]} position={hitInfoRef.current?.point}>
               <meshBasicMaterial color="red" />
             </Sphere>
           )}
