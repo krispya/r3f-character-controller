@@ -11,7 +11,7 @@ import { AirCollision } from './modifiers/air-collision';
 import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { notEqualToZero } from 'utilities/math';
-import { useEventHandler } from 'utilities/use-event-handler';
+import { Capsule } from 'collider/geometry/capsule';
 
 export type HitInfo = {
   collider: THREE.Object3D;
@@ -21,7 +21,12 @@ export type HitInfo = {
   location: THREE.Vector3;
 };
 
-export type Capsule = {
+export type MTD = {
+  distance: number;
+  direction: THREE.Vector3;
+};
+
+export type CapsuleType = {
   radius: number;
   height: number;
 };
@@ -34,8 +39,16 @@ export type CapsuleCastFn = (
   maxDistance: number,
 ) => HitInfo | null;
 
-export type OverlapCapsuleFn = (radius: number, height: number, transform: THREE.Matrix4) => THREE.Object3D[];
+export type OverlapCapsuleFn = (radius: number, height: number, transform: THREE.Matrix4) => THREE.Mesh[];
+
 export type RaycastFn = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
+
+export type ComputePenetrationFn = (
+  colliderA: Capsule,
+  transformA: THREE.Matrix4,
+  colliderB: THREE.BufferGeometry,
+  transformB: THREE.Matrix4,
+) => MTD | null;
 
 export type CharacterControllerProps = {
   id: string;
@@ -50,11 +63,12 @@ export type CharacterControllerProps = {
   capsuleCast: CapsuleCastFn;
   overlapCapsule: OverlapCapsuleFn;
   raycast: RaycastFn;
+  computePenetration: ComputePenetrationFn;
 };
 
 export class Character extends THREE.Object3D {
   public isCharacter: boolean;
-  public boundingCapsule: Capsule;
+  public boundingCapsule: CapsuleType;
   public boundingBox: THREE.Box3;
 
   constructor(radius: number, height: number) {
@@ -80,6 +94,7 @@ export function CharacterController({
   capsuleCast,
   raycast,
   overlapCapsule,
+  computePenetration,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [character, setCharacter] = useCharacterController((state) => [state.characters.get(id), state.setCharacter]);
@@ -108,11 +123,8 @@ export function CharacterController({
     smoothDamp: new SmoothDamp(rotateTime, 100),
     movement: new THREE.Vector3(),
     moveList: [] as THREE.Vector3[],
+    capsule: new Capsule(),
   });
-
-  const capsuleCastHandler = useEventHandler<typeof capsuleCast>(capsuleCast);
-  const overlapCapsuleHandler = useEventHandler<typeof overlapCapsule>(overlapCapsule);
-  const raycastHandler = useEventHandler<typeof raycast>(raycast);
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
@@ -140,14 +152,17 @@ export function CharacterController({
     },
   );
 
-  useLayoutEffect(() => setCharacter(id, new Character(0.27, 0.27 * 2 + 1)), [id, setCharacter]);
+  useLayoutEffect(() => {
+    setCharacter(id, new Character(0.27, 0.27 * 2 + 1));
+    store.capsule.set(0.27, (0.27 * 2 + 1) / 2);
+  }, [id, setCharacter, store]);
 
   const detectGround = useCallback((): HitInfo | null => {
     if (!character) return null;
     const { vecB } = store;
     const { boundingCapsule: capsule } = character;
-    return raycastHandler(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
-  }, [character, groundDetectionOffset, raycastHandler, store]);
+    return raycast(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
+  }, [character, groundDetectionOffset, raycast, store]);
 
   const updateGroundedState = useCallback(() => {
     const hit = detectGround();
@@ -210,19 +225,24 @@ export function CharacterController({
   const resolveCollision = useCallback(
     (position: THREE.Vector3) => {
       if (!character) return;
-      // Move the (virtual) position to the hit point.
-      // Then we need to get penetration information at this position.
+
+      const deltaVector = new THREE.Vector3();
       const transform = new THREE.Matrix4().copy(character.matrix).setPosition(position);
-      const colliders = overlapCapsuleHandler(
+
+      const colliders = overlapCapsule(
         character.boundingCapsule.radius,
-        character.boundingCapsule.height,
+        character.boundingCapsule.height / 2,
         transform,
       );
-      // We do an intersection test and make an array of all overlapping colliders at the target move position.
-      // Then loop through this array and push away from each collider to get a final direction and distance.
-      // Then calculate and return that delta vector calling another physics function ComputePenetration.
+
+      colliders.forEach((collider) => {
+        const mtd = computePenetration(store.capsule, transform, collider.geometry, collider.matrix);
+        if (mtd) deltaVector.addScaledVector(mtd.direction, mtd.distance);
+      });
+
+      return deltaVector;
     },
-    [character, overlapCapsuleHandler],
+    [character, computePenetration, overlapCapsule, store],
   );
 
   const moveLoop = (dt: number) => {
@@ -238,7 +258,7 @@ export function CharacterController({
       const moveDirection = vecC.copy(currentMove).normalize();
 
       // Test for collision with a capsule cast in the movement direction.
-      const hit = capsuleCastHandler(
+      const hit = capsuleCast(
         character.boundingCapsule.radius,
         character.boundingCapsule.height / 2,
         character.matrix,
@@ -248,9 +268,8 @@ export function CharacterController({
 
       // If there is a collision, resolve it.
       if (hit) {
-        resolveCollision(hit.location);
-        // virtualPosition.add(deltaVector);
-        virtualPosition.add(currentMove);
+        const deltaVector = resolveCollision(hit.location);
+        if (deltaVector) virtualPosition.add(deltaVector);
       } else {
         // Else move the character by the full movement vector.
         virtualPosition.add(currentMove);
@@ -268,68 +287,6 @@ export function CharacterController({
     updateGroundedState();
     updateMovementMode();
   };
-
-  // Applies forces to the character, then checks for collision.
-  // If one is detected then the character is moved to no longer collide.
-  // const step = useCallback(
-  //   (delta: number) => {
-  //     if (!collider?.geometry.boundsTree || !character) return;
-
-  //     const { line, vecA: vec, vecB: vec2, box, movement: velocity, deltaVector, groundNormal } = store;
-  //     const { boundingCapsule: capsule, boundingBox } = character;
-
-  //     // Start by moving the character.
-  //     moveCharacter(velocity, delta);
-
-  //     // Update bounding volume.
-  //     character.computeBoundingVolume();
-  //     line.copy(capsule.line);
-  //     box.copy(boundingBox);
-
-  //     // Check for collisions.
-  //     collider.geometry.boundsTree.shapecast({
-  //       intersectsBounds: (bounds) => bounds.intersectsBox(box),
-  //       intersectsTriangle: (tri) => {
-  //         const triPoint = vec;
-  //         const capsulePoint = vec2;
-  //         const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-
-  //         // If the distance is less than the radius of the character, we have a collision.
-  //         if (distance < capsule.radius) {
-  //           const depth = capsule.radius - distance;
-  //           const direction = capsulePoint.sub(triPoint).normalize();
-
-  //           // Move the line segment so there is no longer an intersection.
-  //           line.start.addScaledVector(direction, depth);
-  //           line.end.addScaledVector(direction, depth);
-  //         }
-  //       },
-  //     });
-
-  //     const newPosition = vec;
-  //     deltaVector.set(0, 0, 0);
-  //     // Bounding volume origin is calculated. This might lose percision.
-  //     line.getCenter(newPosition);
-  //     deltaVector.subVectors(newPosition, character.position);
-
-  //     // Discard values smaller than our tolerance.
-  //     const offset = Math.max(0, deltaVector.length() - 1e-7);
-  //     deltaVector.normalize().multiplyScalar(offset);
-
-  //     character.position.add(deltaVector);
-
-  //     const [isGrounded, face] = detectGround();
-  //     store.isGrounded = isGrounded;
-  //     if (face) groundNormal.copy(face.normal);
-
-  //     // Set character movement state. We have a cooldown to prevent false positives.
-  //     if (store.toggle) {
-  //       if (store.isGrounded) fsm.send('WALK');
-  //       if (!store.isGrounded) fsm.send('FALL');
-  //     }
-  //   },
-  //   [character, collider?.geometry.boundsTree, detectGround, fsm, moveCharacter, store],
-  // );
 
   useUpdate((_, dt) => {
     calculateMovement();

@@ -85,6 +85,7 @@ export function PlayerController({
       slopeLimit={props.slopeLimit}
       capsuleCast={props.capsuleCast}
       overlapCapsule={props.overlapCapsule}
+      computePenetration={props.computePenetration}
       raycast={props.raycast}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />

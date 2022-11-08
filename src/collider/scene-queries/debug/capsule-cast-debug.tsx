@@ -1,10 +1,11 @@
 import { createPortal, useThree, useUpdate } from '@react-three/fiber';
 import { useRef, useState } from 'react';
-import { CapsuleCastParams, HitInfo } from '../capsule-cast';
+import { CapsuleCastParams } from '../capsule-cast';
 import { CapsuleWireframe } from './capsule-wireframe';
 import { RayWireframe } from './ray-wireframe';
 import * as THREE from 'three';
 import { Sphere } from '@react-three/drei';
+import { HitInfo } from '../raycast';
 
 type CapsuleCastDebugProps = CapsuleCastParams & { hitInfoRef: React.MutableRefObject<HitInfo | null> };
 

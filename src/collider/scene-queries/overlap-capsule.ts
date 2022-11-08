@@ -2,11 +2,11 @@ import { Capsule } from 'collider/geometry/capsule';
 import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 
-export type OverlapCapsuleFn = (radius: number, halfHeight: number, transform: THREE.Matrix4) => THREE.Object3D[];
+export type OverlapCapsuleFn = (radius: number, halfHeight: number, transform: THREE.Matrix4) => THREE.Mesh[];
 
 const store = {
   capsule: new Capsule(),
-  colliders: [] as THREE.Object3D[],
+  colliders: [] as THREE.Mesh[],
   segment: new THREE.Line3(),
   aabb: new THREE.Box3(),
   triPoint: new THREE.Vector3(),
@@ -15,6 +15,8 @@ const store = {
 
 export const overlapCapsule: OverlapCapsuleFn = (radius, halfHeight, transform) => {
   const { capsule, colliders, segment, aabb, triPoint, capsulePoint } = store;
+
+  colliders.length = 0;
 
   // TODO: Make this actually support multiple colliders. Big stub.
   const collider = useCollider.getState().collider;
@@ -39,7 +41,7 @@ export const overlapCapsule: OverlapCapsuleFn = (radius, halfHeight, transform) 
 
       if (distance < radius) {
         colliders.push(collider);
-        return;
+        return true;
       }
     },
   });

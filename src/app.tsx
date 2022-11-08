@@ -14,6 +14,7 @@ import { capsuleCast } from 'collider/scene-queries/capsule-cast';
 import { CastTest } from 'test-assets/cast-test';
 import { raycast } from 'collider/scene-queries/raycast';
 import { overlapCapsule } from 'collider/scene-queries/overlap-capsule';
+import { computePenetration } from 'collider/scene-queries/compute-penetration';
 
 const FIXED_STEP = 1 / 60;
 
@@ -40,6 +41,7 @@ function Game() {
         capsuleCast={capsuleCast}
         raycast={raycast}
         overlapCapsule={overlapCapsule}
+        computePenetration={computePenetration}
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}
