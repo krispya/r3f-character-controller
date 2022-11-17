@@ -1,9 +1,10 @@
 import { Sphere } from '@react-three/drei';
 import { applyProps, useUpdate, Vector3 } from '@react-three/fiber';
 import { Instance } from '@react-three/fiber/dist/declarations/src/core/renderer';
+import { HitInfo } from 'character/character-controller';
 import { capsuleCast } from 'collider/scene-queries/capsule-cast';
+import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleCastDebug } from 'collider/scene-queries/debug/capsule-cast-debug';
-import { HitInfo } from 'collider/scene-queries/raycast';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -33,7 +34,7 @@ export function CastTest({
     if (!autoUpdate) {
       applyProps(ref.current as unknown as Instance, { position });
       ref.current.updateMatrix();
-      hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
+      [hitInfoRef.current] = capsuleCastMTD(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
     }
     setIsInit(true);
   }, [halfHeight, isInit, radius, store, position, autoUpdate, maxDistance]);
@@ -44,7 +45,7 @@ export function CastTest({
 
   useUpdate(() => {
     if (!autoUpdate) return;
-    hitInfoRef.current = capsuleCast(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
+    [hitInfoRef.current] = capsuleCastMTD(radius, halfHeight, ref.current.matrix, store.direction, maxDistance);
   });
 
   return (

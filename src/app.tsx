@@ -34,7 +34,7 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
-      <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.5} maxDistance={8} autoUpdate />
+      <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.55} maxDistance={8} autoUpdate />
 
       <PlayerController
         id="player"
@@ -45,7 +45,7 @@ function Game() {
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}
-        capsule={{ radius: 0.27 }}
+        capsule={{ radius: 0.27, height: 0.95 }}
         slopeLimit={90}
         gravity={-14}
         debug={{ showBox: true, showCollider: true }}>

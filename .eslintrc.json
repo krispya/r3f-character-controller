@@ -17,6 +17,12 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
+  "prefer-const": [
+    "error",
+    {
+      "destructuring": "all"
+    }
+  ],
   "plugins": ["react", "@typescript-eslint"],
   "rules": {
     "react/display-name": "off",

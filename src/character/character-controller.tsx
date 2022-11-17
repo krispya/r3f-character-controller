@@ -1,7 +1,6 @@
 import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { CapsuleConfig } from './bounding-volume/use-bounding-volume';
 import { useCharacterController } from './stores/character-store';
 import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
@@ -12,6 +11,11 @@ import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { notEqualToZero } from 'utilities/math';
 import { Capsule } from 'collider/geometry/capsule';
+import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
+import { CapsuleDebug } from 'utilities/capsule-debug';
+import { CapsuleWireframe } from 'collider/scene-queries/debug/capsule-wireframe';
+
+export type CapsuleConfig = { radius: number; height: number };
 
 export type HitInfo = {
   collider: THREE.Object3D;
@@ -24,11 +28,6 @@ export type HitInfo = {
 export type MTD = {
   distance: number;
   direction: THREE.Vector3;
-};
-
-export type CapsuleType = {
-  radius: number;
-  height: number;
 };
 
 export type CapsuleCastFn = (
@@ -55,9 +54,8 @@ export type CharacterControllerProps = {
   children: React.ReactNode;
   debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean; showForce?: boolean };
   position?: Vector3;
-  maxIterations?: number;
   groundDetectionOffset?: number;
-  capsule?: CapsuleConfig;
+  capsule: CapsuleConfig;
   rotateTime?: number;
   slopeLimit?: number;
   capsuleCast: CapsuleCastFn;
@@ -65,31 +63,30 @@ export type CharacterControllerProps = {
   raycast: RaycastFn;
   computePenetration: ComputePenetrationFn;
 };
-
 export class Character extends THREE.Object3D {
   public isCharacter: boolean;
-  public boundingCapsule: CapsuleType;
+  public boundingCapsule: Capsule;
   public boundingBox: THREE.Box3;
 
-  constructor(radius: number, height: number) {
+  constructor(radius: number, halfHeight: number) {
     super();
     this.type = 'Character';
     this.isCharacter = true;
-    this.boundingCapsule = { radius, height };
+    this.boundingCapsule = new Capsule(radius, halfHeight);
     this.boundingBox = new THREE.Box3();
   }
 }
 
-const MAX_ITERATIONS = 10;
+const MAX_STEPS = 20;
+const OVERLAP_RATIO = 0.2;
 
 export function CharacterController({
   id,
   children,
   debug = false,
   position,
-  maxIterations = MAX_ITERATIONS,
   groundDetectionOffset = 0.1,
-  capsule = 'auto',
+  capsule,
   rotateTime = 0.1,
   capsuleCast,
   raycast,
@@ -97,7 +94,11 @@ export function CharacterController({
   computePenetration,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
-  const [character, setCharacter] = useCharacterController((state) => [state.characters.get(id), state.setCharacter]);
+  const [characters, addCharacter, removeCharacter] = useCharacterController((state) => [
+    state.characters,
+    state.addCharacter,
+    state.removeCharacter,
+  ]);
 
   // const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 
@@ -106,24 +107,31 @@ export function CharacterController({
     vecB: new THREE.Vector3(),
     vecC: new THREE.Vector3(),
     deltaVector: new THREE.Vector3(),
-    box: new THREE.Box3(),
-    line: new THREE.Line3(),
-    prevLine: new THREE.Line3(),
     toggle: true,
     timer: 0,
     isGrounded: false,
     isGroundedMovement: false,
     isFalling: false,
     groundNormal: new THREE.Vector3(),
-    direction: new THREE.Vector3(),
     targetAngle: 0,
     currentAngle: 0,
     currentQuat: new THREE.Quaternion(),
     targetQuat: new THREE.Quaternion(),
     smoothDamp: new SmoothDamp(rotateTime, 100),
+    // Character store
+    character: null as Character | null,
+    velocity: new THREE.Vector3(),
     movement: new THREE.Vector3(),
-    moveList: [] as THREE.Vector3[],
-    capsule: new Capsule(),
+    maxDistance: 0,
+    direction: new THREE.Vector3(),
+    virtualPosition: new THREE.Vector3(),
+    segment: new THREE.Line3(),
+    aabb: new THREE.Box3(),
+    collision: false,
+    triPoint: new THREE.Vector3(),
+    capsulePoint: new THREE.Vector3(),
+    hitInfo: null as HitInfo | null,
+    mtd: null as MTD | null,
   });
 
   // Get movement modifiers.
@@ -152,17 +160,22 @@ export function CharacterController({
     },
   );
 
+  // Create character game object on init.
   useLayoutEffect(() => {
-    setCharacter(id, new Character(0.27, 0.27 * 2 + 1));
-    store.capsule.set(0.27, (0.27 * 2 + 1) / 2);
-  }, [id, setCharacter, store]);
+    addCharacter(id, new Character(capsule.radius, capsule.height / 2));
+    store.character = characters.get(id) ?? null;
+    return () => {
+      removeCharacter(id);
+      store.character = null;
+    };
+  }, [id, removeCharacter, addCharacter, capsule]);
 
   const detectGround = useCallback((): HitInfo | null => {
+    const { vecB, character } = store;
     if (!character) return null;
-    const { vecB } = store;
     const { boundingCapsule: capsule } = character;
-    return raycast(character.position, vecB.set(0, -1, 0), capsule.height / 2 + groundDetectionOffset);
-  }, [character, groundDetectionOffset, raycast, store]);
+    return raycast(character.position, vecB.set(0, -1, 0), capsule.halfHeight + groundDetectionOffset);
+  }, [groundDetectionOffset, raycast, store]);
 
   const updateGroundedState = useCallback(() => {
     const hit = detectGround();
@@ -178,124 +191,61 @@ export function CharacterController({
     }
   }, [fsm, store]);
 
-  const calculateMovement = () => {
-    const { movement, direction } = store;
-    movement.set(0, 0, 0);
+  const calculateMovement = (
+    velocity: THREE.Vector3,
+    direction: THREE.Vector3,
+    movement: THREE.Vector3,
+    dt: number,
+  ) => {
+    velocity.set(0, 0, 0);
     direction.set(0, 0, 0);
+    movement.set(0, 0, 0);
 
     for (const modifier of modifiers) {
-      movement.add(modifier.value);
+      velocity.add(modifier.value);
 
       if (modifier.name === 'walking' || modifier.name === 'falling') {
         direction.add(modifier.value);
       }
     }
 
+    // Movement is the vector provided by velocity for a given dt.
+    movement.addScaledVector(velocity, dt);
+    store.maxDistance = movement.length();
+
     direction.normalize().negate();
   };
 
-  const decomposeMovement = () => {
-    const { movement, moveList, vecA, vecB } = store;
-    moveList.length = 0;
+  const moveLoop = (character: Character, movement: THREE.Vector3, maxDistance: number) => {
+    let { hitInfo, mtd } = store;
+    const { boundingCapsule, matrix } = character;
 
-    const horizontal = vecA.set(movement.x, 0, movement.z);
-    const vertical = vecB.set(0, movement.y, 0);
-    const isHorizontalNotZero = notEqualToZero(horizontal.x) || notEqualToZero(horizontal.z);
+    [hitInfo, mtd] = capsuleCastMTD(boundingCapsule.radius, boundingCapsule.halfHeight, matrix, movement, maxDistance);
 
-    // Process up vector component first.
-    if (vertical.y > 0) {
-      moveList.push(vertical.clone());
-      if (isHorizontalNotZero) moveList.push(horizontal.clone());
-      return;
+    // console.log(hitInfo);
+
+    if (hitInfo) {
+      character.position.add(hitInfo.location);
+      store.isGrounded = true;
+    } else {
+      character.position.add(movement);
     }
-
-    // Process down vector component next.
-    // This covers some logic for stepping and sliding that I'll add later.
-    if (vertical.y < 0) {
-      if (isHorizontalNotZero) moveList.push(horizontal.clone());
-      moveList.push(vertical.clone());
-      return;
-    }
-
-    // Process horizontal component last.
-    // Will add some stepping logic here later.
-    moveList.push(horizontal.clone());
-  };
-
-  const resolveCollision = useCallback(
-    (position: THREE.Vector3) => {
-      if (!character) return;
-
-      const deltaVector = new THREE.Vector3();
-      const transform = new THREE.Matrix4().copy(character.matrix).setPosition(position);
-
-      const colliders = overlapCapsule(
-        character.boundingCapsule.radius,
-        character.boundingCapsule.height / 2,
-        transform,
-      );
-
-      colliders.forEach((collider) => {
-        const mtd = computePenetration(store.capsule, transform, collider.geometry, collider.matrix);
-        if (mtd) deltaVector.addScaledVector(mtd.direction, mtd.distance);
-      });
-
-      return deltaVector;
-    },
-    [character, computePenetration, overlapCapsule, store],
-  );
-
-  const moveLoop = (dt: number) => {
-    if (!character) return;
-    const { moveList, vecA, vecB, vecC } = store;
-    let index = 0;
-    const virtualPosition = vecB.copy(character.position);
-    // Apply delta time to the move vectors.
-    moveList.forEach((move) => move.multiplyScalar(dt));
-
-    for (let i = 0; i < maxIterations; i++) {
-      const currentMove = vecA.copy(moveList[index]);
-      const moveDirection = vecC.copy(currentMove).normalize();
-
-      // Test for collision with a capsule cast in the movement direction.
-      const hit = capsuleCast(
-        character.boundingCapsule.radius,
-        character.boundingCapsule.height / 2,
-        character.matrix,
-        moveDirection,
-        currentMove.length(),
-      );
-
-      // If there is a collision, resolve it.
-      if (hit) {
-        const deltaVector = resolveCollision(hit.location);
-        if (deltaVector) virtualPosition.add(deltaVector);
-      } else {
-        // Else move the character by the full movement vector.
-        virtualPosition.add(currentMove);
-      }
-
-      // // Depenetrate
-      // const deltaVector = depenetrate();
-      // if (deltaVector) virtualPosition.add(deltaVector);
-
-      if (index < moveList.length) index++;
-      if (index === moveList.length) break;
-    }
-
-    character.position.copy(virtualPosition);
-    updateGroundedState();
-    updateMovementMode();
   };
 
   useUpdate((_, dt) => {
-    calculateMovement();
-    decomposeMovement();
-    moveLoop(dt);
+    const { velocity, direction, maxDistance, movement, character } = store;
+    if (!character) return;
+
+    calculateMovement(velocity, direction, movement, dt);
+    moveLoop(character, movement, maxDistance);
+
+    updateGroundedState();
+    updateMovementMode();
   }, Stages.Fixed);
 
   // Sync mesh so movement is visible.
   useUpdate(() => {
+    const { character } = store;
     if (!character) return;
     // We update the character matrix manually since it isn't part of the scene graph.
     character.updateMatrix();
@@ -305,6 +255,7 @@ export function CharacterController({
   // Rotate the mesh to point in the direction of movement.
   // TODO: Try using a quaternion slerp instead.
   useUpdate((_, delta) => {
+    const { character } = store;
     if (!meshRef.current || !character) return;
     const { direction, vecA: vec, smoothDamp } = store;
     smoothDamp.smoothTime = rotateTime;
@@ -330,7 +281,7 @@ export function CharacterController({
     meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.currentAngle);
   }, Stages.Late);
 
-  const getVelocity = useCallback(() => store.movement, [store]);
+  const getVelocity = useCallback(() => store.velocity, [store]);
   const getDeltaVector = useCallback(() => store.deltaVector, [store]);
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
   const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);
@@ -352,16 +303,10 @@ export function CharacterController({
       }}>
       <group ref={meshRef}>{children}</group>
       {/* <AirCollision /> */}
-
-      {/* {character && _debug && (
-        <VolumeDebug
-          bounding={character}
-          showCollider={_debug.showCollider}
-          showLine={_debug.showLine}
-          showBox={_debug.showBox}
-          showForce={_debug.showForce}
-        />
-      )} */}
+      <CapsuleWireframe
+        radius={store.character?.boundingCapsule.radius ?? 0}
+        halfHeight={store.character?.boundingCapsule.halfHeight ?? 0}
+      />
     </CharacterControllerContext.Provider>
   );
 }

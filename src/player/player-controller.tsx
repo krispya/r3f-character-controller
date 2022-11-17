@@ -78,7 +78,6 @@ export function PlayerController({
       id={id}
       position={props.position}
       debug={props.debug}
-      maxIterations={props.maxIterations}
       groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
       rotateTime={props.rotateTime}

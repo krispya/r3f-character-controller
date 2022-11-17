@@ -1,10 +1,6 @@
 import { Capsule } from 'collider/geometry/capsule';
 import * as THREE from 'three';
-
-export type MTD = {
-  distance: number;
-  direction: THREE.Vector3;
-};
+import { MTD } from './objects/mtd';
 
 export type ComputePenetrationFn = (
   colliderA: Capsule,

@@ -37,7 +37,7 @@ export function CharacterController({
   rotateTime = 0.1,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
-  const [character, setCharacter] = useCharacterController((state) => [state.characters, state.setCharacter]);
+  const [character, setCharacter] = useCharacterController((state) => [state.characters, state.addCharacter]);
 
   const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
 

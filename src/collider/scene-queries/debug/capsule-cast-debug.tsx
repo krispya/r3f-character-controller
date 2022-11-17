@@ -5,7 +5,7 @@ import { CapsuleWireframe } from './capsule-wireframe';
 import { RayWireframe } from './ray-wireframe';
 import * as THREE from 'three';
 import { Sphere } from '@react-three/drei';
-import { HitInfo } from '../raycast';
+import { HitInfo } from '../objects/hit-info';
 
 type CapsuleCastDebugProps = CapsuleCastParams & { hitInfoRef: React.MutableRefObject<HitInfo | null> };
 
