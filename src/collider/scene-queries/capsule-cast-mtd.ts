@@ -20,6 +20,7 @@ export type CapsuleCastFn = (
   maxDistance: number,
 ) => [HitInfo, MTD] | [null, null];
 
+const MIN_STEPS = 3;
 const MAX_STEPS = 20;
 const OVERLAP_RATIO = 0.2;
 
@@ -53,6 +54,8 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
     depth,
     deltaDirection,
   } = store;
+
+  collision = false;
   const diameter = radius * 2;
 
   // Right now assumes a single collider. We exit if it doesn't have its BVH built yet.
@@ -72,7 +75,10 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
   castStart.set(0, 0, 0);
   castStart.applyMatrix4(transform);
 
-  const steps = Math.max(Math.min(maxDistance / (diameter - diameter * OVERLAP_RATIO), MAX_STEPS), 1);
+  // In order to fend off tunneling, super-sampling is used.
+  // Full coverage of the cast distance is attempted with a max applied to stop excess calculations.
+  // Likewise, a minimum is applied which should be at least 3. This helps accuracy when moving between two triangles.
+  const steps = Math.max(Math.min(maxDistance / (diameter - diameter * OVERLAP_RATIO), MAX_STEPS), MIN_STEPS);
   const delta = maxDistance / steps;
 
   for (let i = 0; i < steps; i++) {
@@ -82,7 +88,7 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
     aabb.min.addScaledVector(direction, delta);
     aabb.max.addScaledVector(direction, delta);
 
-    collision = collider.geometry.boundsTree.shapecast({
+    collider.geometry.boundsTree.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(aabb),
       intersectsTriangle: (tri) => {
         const distance = tri.closestPointToSegment(segment, triPoint, capsulePoint);
@@ -99,13 +105,10 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
           segment.getCenter(castEnd);
           tri.getNormal(normal);
 
-          return true;
+          collision = true;
         }
-        return false;
       },
     });
-
-    if (collision) break;
   }
 
   if (collision) {
