@@ -72,11 +72,11 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
   castStart.set(0, 0, 0);
   castStart.applyMatrix4(transform);
 
-  const steps = Math.min(maxDistance / (diameter - diameter * OVERLAP_RATIO), MAX_STEPS);
+  const steps = Math.max(Math.min(maxDistance / (diameter - diameter * OVERLAP_RATIO), MAX_STEPS), 1);
+  const delta = maxDistance / steps;
 
   for (let i = 0; i < steps; i++) {
     // Move it by the direction and max distance.
-    const delta = maxDistance / steps;
     segment.start.addScaledVector(direction, delta);
     segment.end.addScaledVector(direction, delta);
     aabb.min.addScaledVector(direction, delta);

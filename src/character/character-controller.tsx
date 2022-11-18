@@ -14,6 +14,7 @@ import { Capsule } from 'collider/geometry/capsule';
 import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleDebug } from 'utilities/capsule-debug';
 import { CapsuleWireframe } from 'collider/scene-queries/debug/capsule-wireframe';
+import { useCollider } from 'collider/stores/collider-store';
 
 export type CapsuleConfig = { radius: number; height: number };
 
@@ -94,8 +95,7 @@ export function CharacterController({
   computePenetration,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
-  const [characters, addCharacter, removeCharacter] = useCharacterController((state) => [
-    state.characters,
+  const [addCharacter, removeCharacter] = useCharacterController((state) => [
     state.addCharacter,
     state.removeCharacter,
   ]);
@@ -119,11 +119,12 @@ export function CharacterController({
     targetQuat: new THREE.Quaternion(),
     smoothDamp: new SmoothDamp(rotateTime, 100),
     // Character store
-    character: null as Character | null,
+    character: new Character(capsule.radius, capsule.height / 2),
     velocity: new THREE.Vector3(),
     movement: new THREE.Vector3(),
     maxDistance: 0,
     direction: new THREE.Vector3(),
+    inputDirection: new THREE.Vector3(),
     virtualPosition: new THREE.Vector3(),
     segment: new THREE.Line3(),
     aabb: new THREE.Box3(),
@@ -136,6 +137,9 @@ export function CharacterController({
 
   // Get movement modifiers.
   const { modifiers, addModifier, removeModifier } = useModifiers();
+
+  // Get world collider BVH.
+  const collider = useCollider((state) => state.collider);
 
   // Get fininte state machine.
   const fsm = useInterpret(
@@ -162,11 +166,9 @@ export function CharacterController({
 
   // Create character game object on init.
   useLayoutEffect(() => {
-    addCharacter(id, new Character(capsule.radius, capsule.height / 2));
-    store.character = characters.get(id) ?? null;
+    addCharacter(id, store.character);
     return () => {
       removeCharacter(id);
-      store.character = null;
     };
   }, [id, removeCharacter, addCharacter, capsule]);
 
@@ -191,54 +193,107 @@ export function CharacterController({
     }
   }, [fsm, store]);
 
-  const calculateMovement = (
-    velocity: THREE.Vector3,
-    direction: THREE.Vector3,
-    movement: THREE.Vector3,
-    dt: number,
-  ) => {
+  const calculateMovement = (dt: number) => {
+    const { direction, inputDirection, velocity, movement } = store;
+
     velocity.set(0, 0, 0);
     direction.set(0, 0, 0);
+    inputDirection.set(0, 0, 0);
     movement.set(0, 0, 0);
 
     for (const modifier of modifiers) {
       velocity.add(modifier.value);
 
       if (modifier.name === 'walking' || modifier.name === 'falling') {
-        direction.add(modifier.value);
+        inputDirection.add(modifier.value);
       }
     }
 
     // Movement is the vector provided by velocity for a given dt.
     movement.addScaledVector(velocity, dt);
     store.maxDistance = movement.length();
+    direction.copy(movement).normalize();
 
-    direction.normalize().negate();
+    inputDirection.normalize().negate();
   };
 
-  const moveLoop = (character: Character, movement: THREE.Vector3, maxDistance: number) => {
-    let { hitInfo, mtd } = store;
-    const { boundingCapsule, matrix } = character;
+  const moveLoop = () => {
+    if (!collider?.geometry.boundsTree) return;
+    let {
+      hitInfo,
+      mtd,
+      direction,
+      character,
+      movement,
+      maxDistance,
+      segment,
+      aabb,
+      triPoint,
+      capsulePoint,
+      deltaVector,
+    } = store;
+    const { boundingCapsule: capsule, matrix } = character;
 
-    [hitInfo, mtd] = capsuleCastMTD(boundingCapsule.radius, boundingCapsule.halfHeight, matrix, movement, maxDistance);
+    // [hitInfo, mtd] = capsuleCastMTD(boundingCapsule.radius, boundingCapsule.halfHeight, matrix, direction, maxDistance);
 
-    // console.log(hitInfo);
+    // if (hitInfo) {
+    //   character.position.copy(hitInfo.location);
 
-    if (hitInfo) {
-      character.position.add(hitInfo.location);
-      store.isGrounded = true;
-    } else {
-      character.position.add(movement);
+    //   store.isGrounded = true;
+    // } else {
+    //   character.position.add(movement);
+    // }
+
+    capsule.toSegment(segment);
+    segment.applyMatrix4(matrix);
+
+    aabb.setFromPoints([segment.start, segment.end]);
+    aabb.min.addScalar(-capsule.radius);
+    aabb.max.addScalar(capsule.radius);
+
+    const steps = 5;
+    const delta = maxDistance / steps;
+
+    for (let i = 0; i < steps; i++) {
+      // Move it by the direction and max distance.
+      segment.start.addScaledVector(direction, delta);
+      segment.end.addScaledVector(direction, delta);
+      aabb.min.addScaledVector(direction, delta);
+      aabb.max.addScaledVector(direction, delta);
+
+      collider.geometry.boundsTree.shapecast({
+        intersectsBounds: (bounds) => bounds.intersectsBox(aabb),
+        intersectsTriangle: (tri) => {
+          const distance = tri.closestPointToSegment(segment, triPoint, capsulePoint);
+
+          // If the distance is less than the radius of the capsule, we have a collision.
+          if (distance < capsule.radius) {
+            const depth = capsule.radius - distance;
+            const deltaDirection = capsulePoint.sub(triPoint).normalize();
+
+            segment.start.addScaledVector(deltaDirection, depth);
+            segment.end.addScaledVector(deltaDirection, depth);
+          }
+        },
+      });
     }
+
+    const newPosition = new THREE.Vector3();
+    deltaVector.set(0, 0, 0);
+    // Bounding volume origin is calculated. This might lose percision.
+    segment.getCenter(newPosition);
+    deltaVector.subVectors(newPosition, character.position);
+
+    // Discard values smaller than our tolerance.
+    const offset = Math.max(0, deltaVector.length() - 1e-7);
+    deltaVector.normalize().multiplyScalar(offset);
+
+    character.position.add(deltaVector);
   };
 
   useUpdate((_, dt) => {
-    const { velocity, direction, maxDistance, movement, character } = store;
-    if (!character) return;
-
-    calculateMovement(velocity, direction, movement, dt);
-    moveLoop(character, movement, maxDistance);
-
+    calculateMovement(dt);
+    moveLoop();
     updateGroundedState();
     updateMovementMode();
   }, Stages.Fixed);
@@ -257,11 +312,11 @@ export function CharacterController({
   useUpdate((_, delta) => {
     const { character } = store;
     if (!meshRef.current || !character) return;
-    const { direction, vecA: vec, smoothDamp } = store;
+    const { inputDirection, vecA: vec, smoothDamp } = store;
     smoothDamp.smoothTime = rotateTime;
 
-    if (direction.length() !== 0) {
-      store.targetAngle = Math.atan2(direction.x, direction.z);
+    if (inputDirection.length() !== 0) {
+      store.targetAngle = Math.atan2(inputDirection.x, inputDirection.z);
     } else {
       store.targetAngle = store.currentAngle;
     }
