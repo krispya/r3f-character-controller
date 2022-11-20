@@ -10,7 +10,8 @@ import { PlayerController } from 'player/player-controller';
 import { MushroomBoi } from 'test-assets/mushroom-boi';
 import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
-import { Vector3 } from 'three';
+import { Wander } from 'test-assets/wander';
+import * as THREE from 'three';
 
 const FIXED_STEP = 1 / 60;
 
@@ -37,16 +38,17 @@ function Game() {
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}
-        capsule={{ radius: 0.25, height: 0.25 * 2 }}
+        capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
         slopeLimit={90}
         gravity={-14}
         debug>
-        <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} />
+        {/* <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} /> */}
+        <Wander />
       </PlayerController>
       <CameraController />
 
       <Space />
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.65} />
       <hemisphereLight intensity={0.95} color="#eacb6e" groundColor="red" />
       <spotLight
         castShadow

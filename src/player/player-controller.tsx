@@ -1,3 +1,4 @@
+import { SmoothDamp } from '@gsimone/smoothdamp';
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCameraController } from 'camera/stores/camera-store';
 import { CharacterController, CharacterControllerProps } from 'character/character-controller';
@@ -18,12 +19,14 @@ type PlayerControllerProps = CharacterControllerProps &
     gravityAlwaysOn?: boolean;
     walkSpeed?: number;
     airControl?: number;
+    rotateTime?: number;
   };
 
 export function PlayerController({
   children,
   walkSpeed = WALK_SPEED,
   airControl = 0.5,
+  rotateTime = 0.1,
   id,
   ...props
 }: PlayerControllerProps) {
@@ -32,6 +35,10 @@ export function PlayerController({
     right: new THREE.Vector3(),
     walk: new THREE.Vector3(),
     move: new THREE.Vector2(),
+    smoothDamp: new SmoothDamp(rotateTime, 100),
+    targetAngle: 0,
+    currentAngle: 0,
+    forwardVec: new THREE.Vector3(0, 1, 0),
   }));
 
   const character = useCharacterController((state) => state.characters.get(id));
@@ -73,6 +80,33 @@ export function PlayerController({
     walk.addVectors(forward, right).multiplyScalar(magnitude);
   }, Stages.Early);
 
+  // Rotate the mesh to point in the direction of movement.
+  // TODO: Try using a quaternion slerp instead.
+  useUpdate((_, delta) => {
+    if (!character) return;
+    store.smoothDamp.smoothTime = rotateTime;
+
+    if (store.walk.length() !== 0) {
+      store.targetAngle = Math.atan2(store.walk.x, store.walk.z);
+    } else {
+      store.targetAngle = store.currentAngle;
+    }
+
+    const angleDelta = store.targetAngle - store.currentAngle;
+    // If the angle delta is greater than PI radians, we need to rotate the other way.
+    // This stops the character from rotating the long way around.
+    if (Math.abs(angleDelta) > Math.PI) {
+      store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
+    }
+
+    store.currentAngle = store.smoothDamp.get(store.currentAngle, store.targetAngle, delta);
+    // Make sure our character's angle never exceeds 2PI radians.
+    if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
+    if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
+
+    character.setRotationFromAxisAngle(store.forwardVec, store.currentAngle);
+  }, Stages.Update);
+
   return (
     <CharacterController
       id={id}
@@ -80,7 +114,6 @@ export function PlayerController({
       debug={props.debug}
       groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
-      rotateTime={props.rotateTime}
       slopeLimit={props.slopeLimit}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />

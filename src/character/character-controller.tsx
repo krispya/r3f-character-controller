@@ -6,7 +6,6 @@ import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
 import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
-import { SmoothDamp } from '@gsimone/smoothdamp';
 import { Capsule } from 'collider/geometry/capsule';
 import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
@@ -54,7 +53,6 @@ export type CharacterControllerProps = {
   position?: Vector3;
   groundDetectionOffset?: number;
   capsule: CapsuleConfig;
-  rotateTime?: number;
   slopeLimit?: number;
 };
 
@@ -65,7 +63,6 @@ export function CharacterController({
   position,
   groundDetectionOffset = 0.1,
   capsule,
-  rotateTime = 0.1,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -82,18 +79,12 @@ export function CharacterController({
     isGroundedMovement: false,
     isFalling: false,
     groundNormal: new THREE.Vector3(),
-    targetAngle: 0,
-    currentAngle: 0,
-    currentQuat: new THREE.Quaternion(),
-    targetQuat: new THREE.Quaternion(),
-    smoothDamp: new SmoothDamp(rotateTime, 100),
     // Character store
     character: new Character(capsule.radius, capsule.height / 2),
     velocity: new THREE.Vector3(),
     movement: new THREE.Vector3(),
     maxDistance: 0,
     direction: new THREE.Vector3(),
-    inputDirection: new THREE.Vector3(),
     collision: false,
     hitInfo: null as HitInfo | null,
     mtd: null as MTD | null,
@@ -162,23 +153,16 @@ export function CharacterController({
   const calculateMovement = (dt: number) => {
     store.velocity.set(0, 0, 0);
     store.direction.set(0, 0, 0);
-    store.inputDirection.set(0, 0, 0);
     store.movement.set(0, 0, 0);
 
     for (const modifier of modifiers) {
       store.velocity.add(modifier.value);
-
-      if (modifier.name === 'walking' || modifier.name === 'falling') {
-        store.inputDirection.add(modifier.value);
-      }
     }
 
     // Movement is the local space vector provided by velocity for a given dt.
     store.movement.addScaledVector(store.velocity, dt);
     store.maxDistance = store.movement.length();
     store.direction.copy(store.movement).normalize();
-
-    store.inputDirection.normalize().negate();
   };
 
   const moveCharacter = () => {
@@ -212,33 +196,7 @@ export function CharacterController({
     // We update the character matrix manually since it isn't part of the scene graph.
     store.character.updateMatrix();
     meshRef.current.position.copy(store.character.position);
-  }, Stages.Update);
-
-  // Rotate the mesh to point in the direction of movement.
-  // TODO: Try using a quaternion slerp instead.
-  useUpdate((_, delta) => {
-    if (!meshRef.current) return;
-    store.smoothDamp.smoothTime = rotateTime;
-
-    if (store.inputDirection.length() !== 0) {
-      store.targetAngle = Math.atan2(store.inputDirection.x, store.inputDirection.z);
-    } else {
-      store.targetAngle = store.currentAngle;
-    }
-
-    const angleDelta = store.targetAngle - store.currentAngle;
-    // If the angle delta is greater than PI radians, we need to rotate the other way.
-    // This stops the character from rotating the long way around.
-    if (Math.abs(angleDelta) > Math.PI) {
-      store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
-    }
-
-    store.currentAngle = store.smoothDamp.get(store.currentAngle, store.targetAngle, delta);
-    // Make sure our character's angle never exceeds 2PI radians.
-    if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
-    if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
-
-    meshRef.current.setRotationFromAxisAngle(pool.vecA.set(0, 1, 0), store.currentAngle);
+    meshRef.current.rotation.copy(store.character.rotation);
   }, Stages.Update);
 
   useUpdate(() => {
