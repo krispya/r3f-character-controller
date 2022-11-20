@@ -1,5 +1,5 @@
-import { Character } from 'character/character-controller';
 import create from 'zustand';
+import { Character } from './character';
 
 type CharacterState = {
   characters: Map<string, Character>;

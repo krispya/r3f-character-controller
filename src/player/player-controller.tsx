@@ -81,11 +81,7 @@ export function PlayerController({
       groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
       rotateTime={props.rotateTime}
-      slopeLimit={props.slopeLimit}
-      capsuleCast={props.capsuleCast}
-      overlapCapsule={props.overlapCapsule}
-      computePenetration={props.computePenetration}
-      raycast={props.raycast}>
+      slopeLimit={props.slopeLimit}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />

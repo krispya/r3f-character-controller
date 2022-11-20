@@ -6,17 +6,14 @@ import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
 import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
-import { AirCollision } from './modifiers/air-collision';
-import { VolumeDebug } from './bounding-volume/volume-debug';
 import { SmoothDamp } from '@gsimone/smoothdamp';
-import { notEqualToZero } from 'utilities/math';
 import { Capsule } from 'collider/geometry/capsule';
 import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
-import { CapsuleDebug } from 'utilities/capsule-debug';
-import { CapsuleWireframe } from 'collider/scene-queries/debug/capsule-wireframe';
-import { useCollider } from 'collider/stores/collider-store';
+import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
+import { Character } from './stores/character';
+import { raycast } from 'collider/scene-queries/raycast';
 
-export type CapsuleConfig = { radius: number; height: number };
+export type CapsuleConfig = { radius: number; height: number; center?: Vector3 };
 
 export type HitInfo = {
   collider: THREE.Object3D;
@@ -53,30 +50,13 @@ export type ComputePenetrationFn = (
 export type CharacterControllerProps = {
   id: string;
   children: React.ReactNode;
-  debug?: boolean | { showCollider?: boolean; showLine?: boolean; showBox?: boolean; showForce?: boolean };
+  debug?: boolean;
   position?: Vector3;
   groundDetectionOffset?: number;
   capsule: CapsuleConfig;
   rotateTime?: number;
   slopeLimit?: number;
-  capsuleCast: CapsuleCastFn;
-  overlapCapsule: OverlapCapsuleFn;
-  raycast: RaycastFn;
-  computePenetration: ComputePenetrationFn;
 };
-export class Character extends THREE.Object3D {
-  public isCharacter: boolean;
-  public boundingCapsule: Capsule;
-  public boundingBox: THREE.Box3;
-
-  constructor(radius: number, halfHeight: number) {
-    super();
-    this.type = 'Character';
-    this.isCharacter = true;
-    this.boundingCapsule = new Capsule(radius, halfHeight);
-    this.boundingBox = new THREE.Box3();
-  }
-}
 
 export function CharacterController({
   id,
@@ -86,10 +66,6 @@ export function CharacterController({
   groundDetectionOffset = 0.1,
   capsule,
   rotateTime = 0.1,
-  capsuleCast,
-  raycast,
-  overlapCapsule,
-  computePenetration,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -97,15 +73,11 @@ export function CharacterController({
     state.removeCharacter,
   ]);
 
-  // const _debug = debug === true ? { showCollider: true, showLine: false, showBox: false, showForce: false } : debug;
+  const capsuleDebugRef = useRef<THREE.Group>(null!);
 
+  const [pool] = useState({ vecA: new THREE.Vector3(), vecB: new THREE.Vector3() });
   const [store] = useState({
-    vecA: new THREE.Vector3(),
-    vecB: new THREE.Vector3(),
-    vecC: new THREE.Vector3(),
     deltaVector: new THREE.Vector3(),
-    toggle: true,
-    timer: 0,
     isGrounded: false,
     isGroundedMovement: false,
     isFalling: false,
@@ -125,6 +97,9 @@ export function CharacterController({
     collision: false,
     hitInfo: null as HitInfo | null,
     mtd: null as MTD | null,
+    // FSM store
+    isModeReady: true,
+    timer: 0,
   });
 
   // Get movement modifiers.
@@ -137,13 +112,13 @@ export function CharacterController({
       actions: {
         onFall: () => {
           clearTimeout(store.timer);
-          store.toggle = false;
-          store.timer = setTimeout(() => (store.toggle = true), 100);
+          store.isModeReady = false;
+          store.timer = setTimeout(() => (store.isModeReady = true), 100);
         },
         onWalk: () => {
           clearTimeout(store.timer);
-          store.toggle = false;
-          store.timer = setTimeout(() => (store.toggle = true), 100);
+          store.isModeReady = false;
+          store.timer = setTimeout(() => (store.isModeReady = true), 100);
         },
       },
     },
@@ -161,11 +136,13 @@ export function CharacterController({
     };
   }, [id, removeCharacter, addCharacter, capsule]);
 
+  useLayoutEffect(() => {
+    store.character.boundingCapsule.set(capsule.radius, capsule.height / 2);
+  }, [capsule]);
+
   const detectGround = useCallback((): HitInfo | null => {
-    const { vecB, character } = store;
-    if (!character) return null;
-    const { boundingCapsule: capsule } = character;
-    return raycast(character.position, vecB.set(0, -1, 0), capsule.halfHeight + groundDetectionOffset);
+    const { boundingCapsule: capsule } = store.character;
+    return raycast(store.character.position, pool.vecA.set(0, -1, 0), capsule.halfHeight + groundDetectionOffset);
   }, [groundDetectionOffset, raycast, store]);
 
   const updateGroundedState = useCallback(() => {
@@ -174,49 +151,52 @@ export function CharacterController({
     if (hit) store.groundNormal.copy(hit.normal);
   }, [detectGround, store]);
 
-  const updateMovementMode = useCallback(() => {
+  const updateMovementMode = () => {
     // Set character movement state. We have a cooldown to prevent false positives.
-    if (store.toggle) {
+    if (store.isModeReady) {
       if (store.isGrounded) fsm.send('WALK');
       if (!store.isGrounded) fsm.send('FALL');
     }
-  }, [fsm, store]);
+  };
 
   const calculateMovement = (dt: number) => {
-    const { direction, inputDirection, velocity, movement } = store;
-
-    velocity.set(0, 0, 0);
-    direction.set(0, 0, 0);
-    inputDirection.set(0, 0, 0);
-    movement.set(0, 0, 0);
+    store.velocity.set(0, 0, 0);
+    store.direction.set(0, 0, 0);
+    store.inputDirection.set(0, 0, 0);
+    store.movement.set(0, 0, 0);
 
     for (const modifier of modifiers) {
-      velocity.add(modifier.value);
+      store.velocity.add(modifier.value);
 
       if (modifier.name === 'walking' || modifier.name === 'falling') {
-        inputDirection.add(modifier.value);
+        store.inputDirection.add(modifier.value);
       }
     }
 
     // Movement is the local space vector provided by velocity for a given dt.
-    movement.addScaledVector(velocity, dt);
-    store.maxDistance = movement.length();
-    direction.copy(movement).normalize();
+    store.movement.addScaledVector(store.velocity, dt);
+    store.maxDistance = store.movement.length();
+    store.direction.copy(store.movement).normalize();
 
-    inputDirection.normalize().negate();
+    store.inputDirection.normalize().negate();
   };
 
   const moveCharacter = () => {
-    let { hitInfo, mtd, direction, character, movement, maxDistance } = store;
-    const { boundingCapsule: capsule, matrix } = character;
+    const { boundingCapsule: capsule, matrix } = store.character;
 
-    [hitInfo, mtd] = capsuleCastMTD(capsule.radius, capsule.halfHeight, matrix, direction, maxDistance);
+    [store.hitInfo, store.mtd] = capsuleCastMTD(
+      capsule.radius,
+      capsule.halfHeight,
+      matrix,
+      store.direction,
+      store.maxDistance,
+    );
 
-    if (hitInfo) {
-      character.position.copy(hitInfo.location);
+    if (store.hitInfo) {
+      store.character.position.copy(store.hitInfo.location);
       store.isGrounded = true;
     } else {
-      character.position.add(movement);
+      store.character.position.add(store.movement);
     }
   };
 
@@ -229,22 +209,19 @@ export function CharacterController({
 
   // Sync mesh so movement is visible.
   useUpdate(() => {
-    const { character } = store;
     // We update the character matrix manually since it isn't part of the scene graph.
-    character.updateMatrix();
-    meshRef.current.position.copy(character.position);
+    store.character.updateMatrix();
+    meshRef.current.position.copy(store.character.position);
   }, Stages.Update);
 
   // Rotate the mesh to point in the direction of movement.
   // TODO: Try using a quaternion slerp instead.
   useUpdate((_, delta) => {
-    const { character } = store;
-    if (!meshRef.current || !character) return;
-    const { inputDirection, vecA: vec, smoothDamp } = store;
-    smoothDamp.smoothTime = rotateTime;
+    if (!meshRef.current) return;
+    store.smoothDamp.smoothTime = rotateTime;
 
-    if (inputDirection.length() !== 0) {
-      store.targetAngle = Math.atan2(inputDirection.x, inputDirection.z);
+    if (store.inputDirection.length() !== 0) {
+      store.targetAngle = Math.atan2(store.inputDirection.x, store.inputDirection.z);
     } else {
       store.targetAngle = store.currentAngle;
     }
@@ -256,12 +233,18 @@ export function CharacterController({
       store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
     }
 
-    store.currentAngle = smoothDamp.get(store.currentAngle, store.targetAngle, delta);
+    store.currentAngle = store.smoothDamp.get(store.currentAngle, store.targetAngle, delta);
     // Make sure our character's angle never exceeds 2PI radians.
     if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
     if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
 
-    meshRef.current.setRotationFromAxisAngle(vec.set(0, 1, 0), store.currentAngle);
+    meshRef.current.setRotationFromAxisAngle(pool.vecA.set(0, 1, 0), store.currentAngle);
+  }, Stages.Update);
+
+  useUpdate(() => {
+    if (!capsuleDebugRef.current || !debug) return;
+    capsuleDebugRef.current.position.copy(store.character.position);
+    capsuleDebugRef.current.updateMatrix();
   }, Stages.Late);
 
   const getVelocity = useCallback(() => store.velocity, [store]);
@@ -284,12 +267,17 @@ export function CharacterController({
         getIsFalling,
         getGroundNormal,
       }}>
-      <group ref={meshRef}>{children}</group>
+      <group position={capsule.center}>
+        <group ref={meshRef}>{children}</group>
+      </group>
       {/* <AirCollision /> */}
-      <CapsuleWireframe
-        radius={store.character?.boundingCapsule.radius ?? 0}
-        halfHeight={store.character?.boundingCapsule.halfHeight ?? 0}
-      />
+      {debug && (
+        <CapsuleWireframe
+          ref={capsuleDebugRef}
+          radius={store.character?.boundingCapsule.radius ?? 0}
+          halfHeight={store.character?.boundingCapsule.halfHeight ?? 0}
+        />
+      )}
     </CharacterControllerContext.Provider>
   );
 }

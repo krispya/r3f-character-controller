@@ -10,11 +10,7 @@ import { PlayerController } from 'player/player-controller';
 import { MushroomBoi } from 'test-assets/mushroom-boi';
 import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
-import { capsuleCast } from 'collider/scene-queries/capsule-cast';
-import { CastTest } from 'test-assets/cast-test';
-import { raycast } from 'collider/scene-queries/raycast';
-import { overlapCapsule } from 'collider/scene-queries/overlap-capsule';
-import { computePenetration } from 'collider/scene-queries/compute-penetration';
+import { Vector3 } from 'three';
 
 const FIXED_STEP = 1 / 60;
 
@@ -38,17 +34,13 @@ function Game() {
 
       <PlayerController
         id="player"
-        capsuleCast={capsuleCast}
-        raycast={raycast}
-        overlapCapsule={overlapCapsule}
-        computePenetration={computePenetration}
         position={[0, 2, 0]}
         walkSpeed={5}
         airControl={0.5}
-        capsule={{ radius: 0.27, height: 0.95 }}
+        capsule={{ radius: 0.25, height: 0.25 * 2 }}
         slopeLimit={90}
         gravity={-14}
-        debug={{ showBox: true, showCollider: true }}>
+        debug>
         <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} />
       </PlayerController>
       <CameraController />

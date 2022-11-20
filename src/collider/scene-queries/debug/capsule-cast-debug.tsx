@@ -1,7 +1,7 @@
 import { createPortal, useThree, useUpdate } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { CapsuleCastParams } from '../capsule-cast';
-import { CapsuleWireframe } from './capsule-wireframe';
+import { CapsuleWireframe } from '../../geometry/debug/capsule-wireframe';
 import { RayWireframe } from './ray-wireframe';
 import * as THREE from 'three';
 import { Sphere } from '@react-three/drei';
