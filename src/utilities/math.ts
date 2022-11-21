@@ -82,3 +82,7 @@ export function toFixedNumber(num: number, digits: number, base = 10) {
 export function notEqualToZero(num: number) {
   return Math.abs(num) > Number.EPSILON;
 }
+
+export function equalToZero(num: number) {
+  return Math.abs(num) < Number.EPSILON;
+}

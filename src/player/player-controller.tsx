@@ -1,7 +1,7 @@
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCameraController } from 'camera/stores/camera-store';
-import { CharacterController, CharacterControllerProps } from 'character/character-controller';
+import { CharacterController, CharacterControllerProps, TransformFn } from 'character/character-controller';
 import { Falling, FallingProps } from 'character/modifiers/falling';
 import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';
@@ -10,6 +10,7 @@ import { useCharacterController } from 'character/stores/character-store';
 import { useInputs } from 'input/input-controller';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { PlayerRig } from './player-rig';
 
 type PlayerControllerProps = CharacterControllerProps &
   Omit<GravityProps, 'alwaysOn'> &
@@ -47,9 +48,32 @@ export function PlayerController({
 
   useEffect(() => setTarget(character as THREE.Object3D), [character, setTarget]);
 
-  // Reset if we fall off the level.
-  useUpdate(() => {
-    if (character && character.position.y < -10) {
+  const transform: TransformFn = (character, dt) => {
+    store.smoothDamp.smoothTime = rotateTime;
+
+    if (store.walk.length() !== 0) {
+      store.targetAngle = Math.atan2(store.walk.x, store.walk.z);
+    } else {
+      store.targetAngle = store.currentAngle;
+    }
+
+    const angleDelta = store.targetAngle - store.currentAngle;
+    // If the angle delta is greater than PI radians, we need to rotate the other way.
+    // This stops the character from rotating the long way around.
+    if (Math.abs(angleDelta) > Math.PI) {
+      store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
+    }
+
+    store.currentAngle = store.smoothDamp.get(store.currentAngle, store.targetAngle, dt);
+    // Make sure our character's angle never exceeds 2PI radians.
+    if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
+    if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
+
+    character.setRotationFromAxisAngle(store.forwardVec, store.currentAngle);
+
+    // Reset player position if we fall too far down.
+
+    if (character.position.y < -10) {
       if (props.position) {
         if (Array.isArray(props.position)) character.position.set(...props.position);
         if (props.position instanceof THREE.Vector3) character.position.copy(props.position);
@@ -58,7 +82,7 @@ export function PlayerController({
         character.position.set(0, 0, 0);
       }
     }
-  });
+  };
 
   // Update the player's movement vector based on camera direction.
   useUpdate((state) => {
@@ -80,33 +104,6 @@ export function PlayerController({
     walk.addVectors(forward, right).multiplyScalar(magnitude);
   }, Stages.Early);
 
-  // Rotate the mesh to point in the direction of movement.
-  // TODO: Try using a quaternion slerp instead.
-  useUpdate((_, delta) => {
-    if (!character) return;
-    store.smoothDamp.smoothTime = rotateTime;
-
-    if (store.walk.length() !== 0) {
-      store.targetAngle = Math.atan2(store.walk.x, store.walk.z);
-    } else {
-      store.targetAngle = store.currentAngle;
-    }
-
-    const angleDelta = store.targetAngle - store.currentAngle;
-    // If the angle delta is greater than PI radians, we need to rotate the other way.
-    // This stops the character from rotating the long way around.
-    if (Math.abs(angleDelta) > Math.PI) {
-      store.targetAngle = store.targetAngle - Math.sign(angleDelta) * Math.PI * 2;
-    }
-
-    store.currentAngle = store.smoothDamp.get(store.currentAngle, store.targetAngle, delta);
-    // Make sure our character's angle never exceeds 2PI radians.
-    if (store.currentAngle > Math.PI) store.currentAngle -= Math.PI * 2;
-    if (store.currentAngle < -Math.PI) store.currentAngle += Math.PI * 2;
-
-    character.setRotationFromAxisAngle(store.forwardVec, store.currentAngle);
-  }, Stages.Update);
-
   return (
     <CharacterController
       id={id}
@@ -114,7 +111,8 @@ export function PlayerController({
       debug={props.debug}
       groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
-      slopeLimit={props.slopeLimit}>
+      slopeLimit={props.slopeLimit}
+      transform={transform}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
@@ -125,6 +123,7 @@ export function PlayerController({
         alwaysOn={props.gravityAlwaysOn}
         maxFallSpeed={props.maxFallSpeed}
       />
+      <PlayerRig />
     </CharacterController>
   );
 }

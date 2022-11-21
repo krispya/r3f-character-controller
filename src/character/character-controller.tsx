@@ -39,6 +39,8 @@ export type OverlapCapsuleFn = (radius: number, height: number, transform: THREE
 
 export type RaycastFn = (origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number) => HitInfo | null;
 
+export type TransformFn = (character: Character, dt: number) => void;
+
 export type ComputePenetrationFn = (
   colliderA: Capsule,
   transformA: THREE.Matrix4,
@@ -54,6 +56,7 @@ export type CharacterControllerProps = {
   groundDetectionOffset?: number;
   capsule: CapsuleConfig;
   slopeLimit?: number;
+  transform?: TransformFn;
 };
 
 export function CharacterController({
@@ -63,6 +66,7 @@ export function CharacterController({
   position,
   groundDetectionOffset = 0.1,
   capsule,
+  transform,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -133,7 +137,7 @@ export function CharacterController({
 
   const detectGround = useCallback((): HitInfo | null => {
     const { boundingCapsule: capsule } = store.character;
-    return raycast(store.character.position, pool.vecA.set(0, -1, 0), capsule.halfHeight + groundDetectionOffset);
+    return raycast(store.character.position, pool.vecA.set(0, -1, 0), capsule.halfHeight);
   }, [groundDetectionOffset, raycast, store]);
 
   const updateGroundedState = useCallback(() => {
@@ -192,8 +196,9 @@ export function CharacterController({
   }, Stages.Fixed);
 
   // Sync mesh so movement is visible.
-  useUpdate(() => {
+  useUpdate((_, dt) => {
     // We update the character matrix manually since it isn't part of the scene graph.
+    if (transform) transform(store.character, dt);
     store.character.updateMatrix();
     meshRef.current.position.copy(store.character.position);
     meshRef.current.rotation.copy(store.character.rotation);
