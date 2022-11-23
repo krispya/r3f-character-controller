@@ -1,4 +1,4 @@
-import { Color, extend, GroupProps, Object3DNode } from '@react-three/fiber';
+import { extend, ThreeElement } from '@react-three/fiber';
 import React, { useEffect, useState } from 'react';
 import { Line2, LineGeometry, LineMaterial } from 'three-stdlib';
 
@@ -6,16 +6,16 @@ extend({ Line2, LineGeometry, LineMaterial });
 
 declare module '@react-three/fiber' {
   interface ThreeElements {
-    lineGeometry: Object3DNode<LineGeometry, typeof LineGeometry>;
-    lineMaterial: Object3DNode<LineMaterial, typeof LineMaterial>;
-    line2: Object3DNode<Line2, typeof Line2>;
+    lineGeometry: ThreeElement<typeof LineGeometry>;
+    lineMaterial: ThreeElement<typeof LineMaterial>;
+    line2: ThreeElement<typeof Line2>;
   }
 }
 
-export type CapsuleWireframeProps = GroupProps & {
+export type CapsuleWireframeProps = JSX.IntrinsicElements['group'] & {
   radius: number;
   halfHeight: number;
-  color?: Color;
+  color?: string | number | THREE.Color | [r: number, g: number, b: number];
 };
 
 function createPoints(radius = 1, halfHeight = 1, degrees = 30) {
@@ -51,10 +51,10 @@ const CapsuleWireframeForwardRef = React.forwardRef<THREE.Group, CapsuleWirefram
   ref,
 ) {
   const [store] = useState({
-    lineGeo1: new LineGeometry(),
-    lineGeo2: new LineGeometry(),
-    lineGeo3: new LineGeometry(),
-    lineGeo4: new LineGeometry(),
+    lineGeo1: new LineGeometry().setPositions(createPoints(radius, halfHeight)),
+    lineGeo2: new LineGeometry().setPositions(createPoints(radius, halfHeight)),
+    lineGeo3: new LineGeometry().setPositions(createPoints(radius, radius)),
+    lineGeo4: new LineGeometry().setPositions(createPoints(radius, radius)),
   });
   const segmentHalfHeight = halfHeight - radius;
 
@@ -68,7 +68,7 @@ const CapsuleWireframeForwardRef = React.forwardRef<THREE.Group, CapsuleWirefram
   return (
     <group ref={ref} {...props}>
       <line2 geometry={store.lineGeo1}>
-        <lineMaterial attach="material" color={color} linewidth={0.002} />
+        <lineMaterial color={color} linewidth={0.002} />
       </line2>
       <line2 rotation={[0, Math.PI / 2, 0]} geometry={store.lineGeo2}>
         <lineMaterial color={color} linewidth={0.002} />

@@ -20,7 +20,7 @@ export type CapsuleCastFn = (
   maxDistance: number,
 ) => [HitInfo, MTD] | [null, null];
 
-const MIN_STEPS = 3;
+const MIN_STEPS = 5;
 const MAX_STEPS = 20;
 const OVERLAP_RATIO = 0.2;
 

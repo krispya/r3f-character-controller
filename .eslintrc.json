@@ -17,12 +17,6 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "prefer-const": [
-    "error",
-    {
-      "destructuring": "all"
-    }
-  ],
   "plugins": ["react", "@typescript-eslint"],
   "rules": {
     "react/display-name": "off",
@@ -30,6 +24,13 @@
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/ban-ts-comment": "off",
     "react/jsx-uses-react": "off",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "react/no-unknown-property": "off",
+    "prefer-const": [
+      "error",
+      {
+        "destructuring": "all"
+      }
+    ]
   }
 }

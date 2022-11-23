@@ -7,7 +7,7 @@ import { Terrain } from 'test-assets/terrain';
 import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 import { PlayerController } from 'player/player-controller';
-import { MushroomBoi } from 'test-assets/mushroom-boi';
+// import { MushroomBoi } from 'test-assets/mushroom-boi';
 import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 import { Wander } from 'test-assets/wander';
@@ -39,8 +39,8 @@ function Game() {
         walkSpeed={5}
         airControl={0.5}
         capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
-        slopeLimit={90}
-        gravity={-14}
+        // slopeLimit={90}
+        // gravity={-1}
         debug>
         {/* <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} /> */}
         <Wander />

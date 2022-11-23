@@ -3,7 +3,7 @@ import { CharacterControllerContext } from 'character/contexts/character-control
 import { useContext, useLayoutEffect, useState } from 'react';
 import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
-import { WALK_SPEED } from './walking';
+import { DEFAULT_WALK_SPEED } from './walking';
 
 export type FallingProps = {
   speed?: number;
@@ -13,7 +13,7 @@ export type FallingProps = {
 };
 
 export function Falling({
-  speed = WALK_SPEED * 0.5,
+  speed = DEFAULT_WALK_SPEED * 0.5,
   movement,
   boostVelocity = 2,
   boostVelocityThreshold = 1,
@@ -38,23 +38,30 @@ export function Falling({
     const isFalling = getIsFalling();
 
     if (isFalling) {
-      if (input.length() > 0) {
-        if (store.initialVelocity.length() < boostVelocityThreshold) {
-          store.magnitude = store.initialMagnitude + 1 * boostVelocity;
-        } else {
-          store.magnitude = store.initialMagnitude;
-        }
-        const scaledInput = input.multiplyScalar(speed);
-        store.velocity.copy(store.initialVelocity).add(scaledInput);
-        store.velocity.clampLength(0, store.magnitude);
-        modifier.value.copy(store.velocity);
-      }
+      const scaledInput = input.multiplyScalar(speed);
+      modifier.value.copy(scaledInput);
     } else {
       modifier.value.set(0, 0, 0);
-      store.initialVelocity.copy(getVelocity());
-      store.initialVelocity.y = 0;
-      store.initialMagnitude = store.initialVelocity.length();
     }
+
+    // if (isFalling) {
+    //   if (input.length() > 0) {
+    //     if (store.initialVelocity.length() < boostVelocityThreshold) {
+    //       store.magnitude = store.initialMagnitude + 1 * boostVelocity;
+    //     } else {
+    //       store.magnitude = store.initialMagnitude;
+    //     }
+    //     const scaledInput = input.multiplyScalar(speed);
+    //     store.velocity.copy(store.initialVelocity).add(scaledInput);
+    //     store.velocity.clampLength(0, store.magnitude);
+    //     modifier.value.copy(store.velocity);
+    //   }
+    // } else {
+    //   modifier.value.set(0, 0, 0);
+    //   store.initialVelocity.copy(getVelocity());
+    //   store.initialVelocity.y = 0;
+    //   store.initialMagnitude = store.initialVelocity.length();
+    // }
   });
 
   return null;

@@ -1,38 +1,57 @@
 import { useInterpret } from '@xstate/react';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { playerMachine } from './player-machine';
 import { usePlayer } from './player-store';
 
-const zeroVec = new THREE.Vector3(0, 0, 0);
-
 export function PlayerRig() {
   const { fsm: service, getVelocity } = useContext(CharacterControllerContext);
   const actions = usePlayer((state) => state.actions);
+  const [store] = useState({
+    active: null as null | THREE.AnimationAction,
+    previous: null as null | THREE.AnimationAction,
+    zeroVec: new THREE.Vector3(0, 0, 0),
+  });
+
+  function fadeToAction(name: string, duration: number) {
+    store.previous = store.active;
+    store.active = actions[name];
+
+    if (store.previous === store.active) return;
+
+    if (store.previous && store.previous !== store.active) {
+      store.previous.fadeOut(duration);
+    }
+
+    if (store.active) store.active.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(duration).play();
+  }
+
+  useEffect(() => {
+    actions?.Walking?.play();
+    actions?.Idle?.play();
+    store.active = actions?.Idle;
+  }, [actions, store]);
 
   const fsm = useInterpret(playerMachine, {
     actions: {
       onIdle: () => {
         console.log('idling');
-        actions?.Idle?.reset();
-        actions?.Idle?.play();
-        actions?.Idle?.fadeIn(0.3);
-      },
-      onIdleExit: () => {
-        actions?.Idle?.fadeOut(0.3);
+        if (!actions) return;
+
+        fadeToAction('Idle', 0.3);
       },
       onFall: () => {
         console.log('falling');
+        if (!actions) return;
+
+        fadeToAction('Walking', 0.3);
       },
       onWalk: () => {
         console.log('walking');
-        actions?.Walking?.reset();
-        actions?.Walking?.play();
-        actions?.Walking?.fadeIn(0.3);
-      },
-      onWalkExit: () => {
-        actions?.Walking?.fadeOut(0.3);
+        if (!actions) return;
+
+        fadeToAction('Walking', 0.3);
       },
     },
   });
@@ -41,7 +60,7 @@ export function PlayerRig() {
     const velocity = getVelocity();
 
     if (state.matches('walking')) {
-      if (velocity.equals(zeroVec)) fsm.send('IDLE');
+      if (velocity.equals(store.zeroVec)) fsm.send('IDLE');
       else fsm.send('WALK');
     }
 

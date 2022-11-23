@@ -6,6 +6,6 @@ type PlayerState = {
 };
 
 export const usePlayer = create<PlayerState>((set) => ({
-  actions: {},
+  actions: null,
   setActions: (actions: any) => set({ actions }),
 }));

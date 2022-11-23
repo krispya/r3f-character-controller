@@ -5,7 +5,7 @@ import { CharacterController, CharacterControllerProps, TransformFn } from 'char
 import { Falling, FallingProps } from 'character/modifiers/falling';
 import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';
-import { Walking, WalkingProps, WALK_SPEED } from 'character/modifiers/walking';
+import { Walking, WalkingProps, DEFAULT_WALK_SPEED } from 'character/modifiers/walking';
 import { useCharacterController } from 'character/stores/character-store';
 import { useInputs } from 'input/input-controller';
 import { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ type PlayerControllerProps = CharacterControllerProps &
 
 export function PlayerController({
   children,
-  walkSpeed = WALK_SPEED,
+  walkSpeed = DEFAULT_WALK_SPEED,
   airControl = 0.5,
   rotateTime = 0.1,
   id,
@@ -109,7 +109,6 @@ export function PlayerController({
       id={id}
       position={props.position}
       debug={props.debug}
-      groundDetectionOffset={props.groundDetectionOffset}
       capsule={props.capsule}
       slopeLimit={props.slopeLimit}
       transform={transform}>
@@ -117,12 +116,7 @@ export function PlayerController({
       <Walking movement={() => store.walk} speed={walkSpeed} />
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
       <Jump jump={() => inputs.jump} jumpSpeed={props.jumpSpeed} />
-      <Gravity
-        gravity={props.gravity}
-        groundedGravity={props.groundedGravity}
-        alwaysOn={props.gravityAlwaysOn}
-        maxFallSpeed={props.maxFallSpeed}
-      />
+      <Gravity gravity={props.gravity} maxFallSpeed={props.maxFallSpeed} />
       <PlayerRig />
     </CharacterController>
   );

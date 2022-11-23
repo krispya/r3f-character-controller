@@ -1,19 +1,21 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
-import { useContext, useLayoutEffect } from 'react';
+import { useContext, useLayoutEffect, useState } from 'react';
 import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
 
-export const WALK_SPEED = 5;
+export const DEFAULT_WALK_SPEED = 5;
+const DEFAULT_MAX_ANGLE = 55;
 
 export type WalkingProps = {
   speed?: number;
   movement?: () => THREE.Vector3;
 };
 
-export function Walking({ speed = WALK_SPEED, movement }: WalkingProps) {
+export function Walking({ speed = DEFAULT_WALK_SPEED, movement }: WalkingProps) {
   const { addModifier, removeModifier, getIsWalking, getGroundNormal } = useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
+  const [store] = useState({ upVec: new THREE.Vector3(0, 1, 0) });
 
   useLayoutEffect(() => {
     addModifier(modifier);
@@ -22,10 +24,13 @@ export function Walking({ speed = WALK_SPEED, movement }: WalkingProps) {
 
   const adjustVelocityToSlope = (velocity: THREE.Vector3) => {
     const normal = getGroundNormal();
-    const slopeRotation = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    const slopeRotation = new THREE.Quaternion().setFromUnitVectors(store.upVec, normal);
     const adjustedVelocity = new THREE.Vector3().copy(velocity).applyQuaternion(slopeRotation);
 
-    if (adjustedVelocity.y < 0) {
+    const radians = store.upVec.angleTo(normal);
+    const angle = THREE.MathUtils.radToDeg(radians);
+
+    if (adjustedVelocity.y < 0 && angle < DEFAULT_MAX_ANGLE) {
       return adjustedVelocity;
     }
 

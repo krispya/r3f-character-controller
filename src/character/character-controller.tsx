@@ -1,4 +1,4 @@
-import { Stages, useUpdate, Vector3 } from '@react-three/fiber';
+import { Stages, useUpdate } from '@react-three/fiber';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useCharacterController } from './stores/character-store';
@@ -12,7 +12,7 @@ import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
 import { Character } from './stores/character';
 import { raycast } from 'collider/scene-queries/raycast';
 
-export type CapsuleConfig = { radius: number; height: number; center?: Vector3 };
+export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vector3 };
 
 export type HitInfo = {
   collider: THREE.Object3D;
@@ -52,21 +52,24 @@ export type CharacterControllerProps = {
   id: string;
   children: React.ReactNode;
   debug?: boolean;
-  position?: Vector3;
-  groundDetectionOffset?: number;
+  position?: THREE.Vector3 | [x: number, y: number, z: number];
   capsule: CapsuleConfig;
   slopeLimit?: number;
+  snapToGround?: number;
   transform?: TransformFn;
 };
+
+const TOLERANCE = 1e-7;
 
 export function CharacterController({
   id,
   children,
   debug = false,
   position,
-  groundDetectionOffset = 0.1,
   capsule,
   transform,
+  snapToGround = 0.1,
+  slopeLimit = 50,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -82,6 +85,7 @@ export function CharacterController({
     isGrounded: false,
     isGroundedMovement: false,
     isFalling: false,
+    isSliding: false,
     groundNormal: new THREE.Vector3(),
     // Character store
     character: new Character(capsule.radius, capsule.height / 2),
@@ -129,22 +133,98 @@ export function CharacterController({
     return () => {
       removeCharacter(id);
     };
-  }, [id, removeCharacter, addCharacter, capsule]);
+  }, [id, removeCharacter, addCharacter, capsule, store]);
 
   useLayoutEffect(() => {
     store.character.boundingCapsule.set(capsule.radius, capsule.height / 2);
-  }, [capsule]);
+  }, [capsule, store]);
 
-  const detectGround = useCallback((): HitInfo | null => {
-    const { boundingCapsule: capsule } = store.character;
-    return raycast(store.character.position, pool.vecA.set(0, -1, 0), capsule.halfHeight);
-  }, [groundDetectionOffset, raycast, store]);
+  const calculateSlope = useCallback(
+    (normal: THREE.Vector3) => {
+      const upVec = pool.vecA.set(0, 1, 0);
+      const radians = upVec.angleTo(normal);
+      return THREE.MathUtils.radToDeg(radians);
+    },
+    [pool],
+  );
+
+  const detectGround = useCallback(
+    (offset: number, withCapsule?: boolean): HitInfo | null => {
+      store.character.updateMatrix();
+      const { boundingCapsule: capsule, matrix } = store.character;
+      const downVec = pool.vecA.set(0, -1, 0);
+
+      if (!withCapsule) {
+        const raycastHit = raycast(store.character.position, downVec, capsule.halfHeight + offset);
+        return raycastHit;
+      }
+
+      if (withCapsule) {
+        const [capcastHit] = capsuleCastMTD(capsule.radius / 2, capsule.halfHeight, matrix, downVec, offset);
+        return capcastHit;
+      }
+
+      return null;
+    },
+    [pool, store],
+  );
 
   const updateGroundedState = useCallback(() => {
-    const hit = detectGround();
-    store.isGrounded = hit !== null ? true : false;
-    if (hit) store.groundNormal.copy(hit.normal);
-  }, [detectGround, store]);
+    store.isSliding = false;
+    store.isGrounded = false;
+    store.groundNormal.set(0, 0, 0);
+
+    // If we are moving up, we don't need to check for the ground.
+    if (store.movement.y > 0) return;
+
+    if (store.hitInfo) {
+      console.log('isGrounded collision');
+      const angle = calculateSlope(store.hitInfo.normal);
+      const rayHit = detectGround(snapToGround, false);
+
+      if (rayHit && angle <= slopeLimit) {
+        store.isSliding = true;
+      }
+
+      store.isGrounded = true;
+
+      if (rayHit) {
+        store.groundNormal.copy(rayHit.normal);
+      } else {
+        store.groundNormal.copy(store.hitInfo.normal);
+      }
+
+      return;
+    }
+
+    const hit = detectGround(snapToGround, true);
+
+    if (hit) {
+      console.log('isGrounded cast');
+      const angle = calculateSlope(hit.normal);
+
+      if (hit && angle <= slopeLimit) {
+        store.isSliding = true;
+      }
+
+      store.isGrounded = true;
+      store.groundNormal.copy(hit.normal);
+
+      // const deltaVector = pool.vecA;
+      // deltaVector.subVectors(hit.location, store.character.position);
+
+      // if (Math.abs(store.movement.y) > TOLERANCE) return;
+
+      // if (deltaVector.length() > TOLERANCE) {
+      //   store.character.position.copy(hit.location);
+      //   console.log('snapping');
+      // }
+
+      return;
+    }
+
+    console.log('Is NOT grounded');
+  }, [calculateSlope, detectGround, slopeLimit, snapToGround, store, pool]);
 
   const updateMovementMode = () => {
     // Set character movement state. We have a cooldown to prevent false positives.
@@ -159,8 +239,11 @@ export function CharacterController({
     store.direction.set(0, 0, 0);
     store.movement.set(0, 0, 0);
 
+    // console.log('1. isGrounded: ', store.isGrounded);
+
     for (const modifier of modifiers) {
       store.velocity.add(modifier.value);
+      // console.log(modifier.name, modifier.value);
     }
 
     // Movement is the local space vector provided by velocity for a given dt.
@@ -170,7 +253,7 @@ export function CharacterController({
   };
 
   const moveCharacter = () => {
-    const { boundingCapsule: capsule, matrix } = store.character;
+    const { boundingCapsule: capsule, matrix, position } = store.character;
 
     [store.hitInfo, store.mtd] = capsuleCastMTD(
       capsule.radius,
@@ -181,8 +264,12 @@ export function CharacterController({
     );
 
     if (store.hitInfo) {
-      store.character.position.copy(store.hitInfo.location);
-      store.isGrounded = true;
+      // Discard changes in position smaller than our tolerance.
+      store.deltaVector.subVectors(store.hitInfo.location, position);
+      const clampedLength = Math.max(store.deltaVector.length() - TOLERANCE, 0);
+      store.deltaVector.normalize().multiplyScalar(clampedLength);
+
+      store.character.position.add(store.deltaVector);
     } else {
       store.character.position.add(store.movement);
     }
@@ -231,7 +318,9 @@ export function CharacterController({
         getGroundNormal,
       }}>
       <group position={capsule.center}>
-        <group ref={meshRef}>{children}</group>
+        <group ref={meshRef}>
+          <>{children}</>
+        </group>
       </group>
       {/* <AirCollision /> */}
       {debug && (
