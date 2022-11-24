@@ -52,10 +52,10 @@ export type CharacterControllerProps = {
   id: string;
   children: React.ReactNode;
   debug?: boolean;
-  position?: THREE.Vector3 | [x: number, y: number, z: number];
   capsule: CapsuleConfig;
   slopeLimit?: number;
   snapToGround?: number;
+  nearGround?: number | false;
   transform?: TransformFn;
 };
 
@@ -65,10 +65,10 @@ export function CharacterController({
   id,
   children,
   debug = false,
-  position,
   capsule,
   transform,
   snapToGround = 0.1,
+  nearGround = 1,
   slopeLimit = 50,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
@@ -86,6 +86,7 @@ export function CharacterController({
     isGroundedMovement: false,
     isFalling: false,
     isSliding: false,
+    isNearGround: false,
     groundNormal: new THREE.Vector3(),
     // Character store
     character: new Character(capsule.radius, capsule.height / 2),
@@ -105,6 +106,8 @@ export function CharacterController({
   const { modifiers, addModifier, removeModifier } = useModifiers();
 
   // Get fininte state machine.
+  // TODO: I think there is a delay switching states when done in the callback.
+  // I should investigate at some point.
   const fsm = useInterpret(
     movementMachine,
     {
@@ -172,13 +175,14 @@ export function CharacterController({
   const updateGroundedState = useCallback(() => {
     store.isSliding = false;
     store.isGrounded = false;
+    store.isNearGround = false;
     store.groundNormal.set(0, 0, 0);
 
     // If we are moving up, we don't need to check for the ground.
     if (store.movement.y > 0) return;
 
     if (store.hitInfo) {
-      console.log('isGrounded collision');
+      // console.log('isGrounded collision');
       const angle = calculateSlope(store.hitInfo.normal);
       const rayHit = detectGround(snapToGround, false);
 
@@ -200,7 +204,7 @@ export function CharacterController({
     const hit = detectGround(snapToGround, true);
 
     if (hit) {
-      console.log('isGrounded cast');
+      // console.log('isGrounded cast');
       const angle = calculateSlope(hit.normal);
 
       if (hit && angle <= slopeLimit) {
@@ -210,21 +214,23 @@ export function CharacterController({
       store.isGrounded = true;
       store.groundNormal.copy(hit.normal);
 
-      // const deltaVector = pool.vecA;
-      // deltaVector.subVectors(hit.location, store.character.position);
+      const deltaVector = pool.vecA;
+      deltaVector.subVectors(hit.location, store.character.position);
 
-      // if (Math.abs(store.movement.y) > TOLERANCE) return;
-
-      // if (deltaVector.length() > TOLERANCE) {
-      //   store.character.position.copy(hit.location);
-      //   console.log('snapping');
-      // }
-
-      return;
+      // Only snap to ground if we are above nearly flat terrain.
+      // It's a bit of a workaround but it works for now.
+      if (deltaVector.length() > TOLERANCE && Math.abs(angle) <= 10) {
+        store.character.position.copy(hit.location);
+      }
     }
 
-    console.log('Is NOT grounded');
-  }, [calculateSlope, detectGround, slopeLimit, snapToGround, store, pool]);
+    if (nearGround) {
+      const nearGroundHit = detectGround(nearGround, true);
+      if (nearGroundHit) store.isNearGround = true;
+    }
+
+    // console.log('Is NOT grounded');
+  }, [store, detectGround, snapToGround, calculateSlope, slopeLimit, nearGround, pool.vecA]);
 
   const updateMovementMode = () => {
     // Set character movement state. We have a cooldown to prevent false positives.
@@ -238,8 +244,6 @@ export function CharacterController({
     store.velocity.set(0, 0, 0);
     store.direction.set(0, 0, 0);
     store.movement.set(0, 0, 0);
-
-    // console.log('1. isGrounded: ', store.isGrounded);
 
     for (const modifier of modifiers) {
       store.velocity.add(modifier.value);
@@ -302,6 +306,8 @@ export function CharacterController({
   const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
   const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);
   const getIsFalling = useCallback(() => store.isFalling, [store]);
+  const getIsSliding = useCallback(() => store.isSliding, [store]);
+  const getIsNearGround = useCallback(() => store.isNearGround, [store]);
   const getGroundNormal = useCallback(() => store.groundNormal, [store]);
 
   return (
@@ -316,6 +322,8 @@ export function CharacterController({
         getIsWalking,
         getIsFalling,
         getGroundNormal,
+        getIsSliding,
+        getIsNearGround,
       }}>
       <group position={capsule.center}>
         <group ref={meshRef}>

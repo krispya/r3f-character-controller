@@ -6,7 +6,7 @@ import { playerMachine } from './player-machine';
 import { usePlayer } from './player-store';
 
 export function PlayerRig() {
-  const { fsm: service, getVelocity } = useContext(CharacterControllerContext);
+  const { fsm: service, getVelocity, getIsNearGround } = useContext(CharacterControllerContext);
   const actions = usePlayer((state) => state.actions);
   const [store] = useState({
     active: null as null | THREE.AnimationAction,
@@ -31,6 +31,7 @@ export function PlayerRig() {
     actions?.Walking?.play();
     actions?.Idle?.play();
     store.active = actions?.Idle;
+    console.log(actions);
   }, [actions, store]);
 
   const fsm = useInterpret(playerMachine, {
@@ -45,19 +46,20 @@ export function PlayerRig() {
         console.log('falling');
         if (!actions) return;
 
-        fadeToAction('Walking', 0.3);
+        fadeToAction('Fall Idle', 0.3);
       },
       onWalk: () => {
         console.log('walking');
         if (!actions) return;
 
-        fadeToAction('Walking', 0.3);
+        fadeToAction('Walk', 0.3);
       },
     },
   });
 
   service.onTransition((state) => {
     const velocity = getVelocity();
+    const isNearGround = getIsNearGround();
 
     if (state.matches('walking')) {
       if (velocity.equals(store.zeroVec)) fsm.send('IDLE');
@@ -65,7 +67,12 @@ export function PlayerRig() {
     }
 
     if (state.matches('falling')) {
-      fsm.send('FALL');
+      if (isNearGround) {
+        fsm.send('WALK');
+        console.log('----Near Ground!');
+      } else {
+        fsm.send('FALL');
+      }
     }
   });
 

@@ -21,6 +21,7 @@ type PlayerControllerProps = CharacterControllerProps &
     walkSpeed?: number;
     airControl?: number;
     rotateTime?: number;
+    position?: THREE.Vector3 | [x: number, y: number, z: number];
   };
 
 export function PlayerController({
@@ -47,6 +48,20 @@ export function PlayerController({
   const inputs = useInputs();
 
   useEffect(() => setTarget(character as THREE.Object3D), [character, setTarget]);
+
+  useEffect(() => {
+    if (!character) return;
+
+    if (props.position) {
+      if (Array.isArray(props.position)) character.position.set(...props.position);
+      if (props.position instanceof THREE.Vector3) character.position.copy(props.position);
+      if (typeof props.position === 'number') character.position.set(props.position, props.position, props.position);
+      character.updateMatrix();
+    } else {
+      character.position.set(0, 0, 0);
+      character.updateMatrix();
+    }
+  }, [character, props.position]);
 
   const transform: TransformFn = (character, dt) => {
     store.smoothDamp.smoothTime = rotateTime;
@@ -107,7 +122,6 @@ export function PlayerController({
   return (
     <CharacterController
       id={id}
-      position={props.position}
       debug={props.debug}
       capsule={props.capsule}
       slopeLimit={props.slopeLimit}

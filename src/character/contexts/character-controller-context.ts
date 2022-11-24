@@ -13,6 +13,8 @@ type CharacterControllerState = {
   getIsFalling: () => boolean;
   getIsWalking: () => boolean;
   getGroundNormal: () => THREE.Vector3;
+  getIsSliding: () => boolean;
+  getIsNearGround: () => boolean;
 };
 
 export const CharacterControllerContext = createContext<CharacterControllerState>(null!);
