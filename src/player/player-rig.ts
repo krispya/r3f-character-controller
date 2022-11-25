@@ -69,7 +69,6 @@ export function PlayerRig() {
     if (state.matches('falling')) {
       if (isNearGround) {
         fsm.send('WALK');
-        console.log('----Near Ground!');
       } else {
         fsm.send('FALL');
       }

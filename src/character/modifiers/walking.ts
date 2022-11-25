@@ -10,9 +10,10 @@ const DEFAULT_MAX_ANGLE = 55;
 export type WalkingProps = {
   speed?: number;
   movement?: () => THREE.Vector3;
+  adjustToSlope?: boolean;
 };
 
-export function Walking({ speed = DEFAULT_WALK_SPEED, movement }: WalkingProps) {
+export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = true }: WalkingProps) {
   const { addModifier, removeModifier, getIsWalking, getGroundNormal } = useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
   const [store] = useState({ upVec: new THREE.Vector3(0, 1, 0) });
@@ -45,7 +46,7 @@ export function Walking({ speed = DEFAULT_WALK_SPEED, movement }: WalkingProps) 
 
     if (isWalking && input.length() > 0) {
       const velocity = input.multiplyScalar(speed);
-      velocity.copy(adjustVelocityToSlope(velocity));
+      if (adjustToSlope) velocity.copy(adjustVelocityToSlope(velocity));
       modifier.value.copy(velocity);
     } else {
       modifier.value.set(0, 0, 0);

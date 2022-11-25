@@ -12,6 +12,7 @@ import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 import { Wander } from 'test-assets/wander';
 import * as THREE from 'three';
+// import { CastTest } from 'test-assets/cast-test';
 
 const FIXED_STEP = 1 / 60;
 
@@ -31,11 +32,11 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
-      {/* <CastTest position={[4.5, -1.5, -9]} radius={0.25} halfHeight={0.55} maxDistance={8} autoUpdate /> */}
+      {/* <CastTest position={[4.5, -1.5, -11]} radius={0.25} halfHeight={0.55} maxDistance={1} autoUpdate /> */}
 
       <PlayerController
         id="player"
-        position={[0, 2, 0]}
+        position={[4, 0, -9]}
         walkSpeed={5}
         airControl={0.5}
         capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}

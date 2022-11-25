@@ -96,7 +96,7 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
         // If the distance is less than the radius of the capsule, we have a collision.
         if (distance < radius) {
           depth = radius - distance;
-          deltaDirection = capsulePoint.sub(triPoint).normalize();
+          deltaDirection.copy(capsulePoint).sub(triPoint).normalize();
 
           segment.start.addScaledVector(deltaDirection, depth);
           segment.end.addScaledVector(deltaDirection, depth);
