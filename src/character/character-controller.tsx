@@ -59,7 +59,7 @@ export type CharacterControllerProps = {
   transform?: TransformFn;
 };
 
-const TOLERANCE = 1e-7;
+const TOLERANCE = 1e-5;
 
 export function CharacterController({
   id,
@@ -69,7 +69,7 @@ export function CharacterController({
   transform,
   snapToGround = 0.1,
   nearGround = 1,
-  slopeLimit = 50,
+  slopeLimit = 55,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -153,7 +153,6 @@ export function CharacterController({
 
   const detectGround = useCallback(
     (offset: number, withCapsule?: boolean): HitInfo | null => {
-      store.character.updateMatrix();
       const { boundingCapsule: capsule, matrix } = store.character;
       const downVec = pool.vecA.set(0, -1, 0);
 
@@ -162,8 +161,9 @@ export function CharacterController({
         return raycastHit;
       }
 
+      // TODO: Can actually just be a sphere cast to simplify logic.
       if (withCapsule) {
-        const [capcastHit] = capsuleCastMTD(capsule.radius / 2, capsule.halfHeight, matrix, downVec, offset);
+        const [capcastHit] = capsuleCastMTD(capsule.radius, capsule.halfHeight, matrix, downVec, offset);
         return capcastHit;
       }
 
@@ -178,36 +178,55 @@ export function CharacterController({
     store.isNearGround = false;
     store.groundNormal.set(0, 0, 0);
 
+    // console.log(store.deltaVector.y);
+
+    // if (store.deltaVector.y > 0) {
+    //   store.isGrounded = true;
+    // }
+
     // If we are moving up, we don't need to check for the ground.
     if (store.movement.y > 0) return;
 
-    if (store.hitInfo) {
-      // console.log('isGrounded collision');
-      const angle = calculateSlope(store.hitInfo.normal);
-      const rayHit = detectGround(snapToGround, false);
+    const { boundingCapsule: capsule, matrix } = store.character;
 
-      if (rayHit && angle <= slopeLimit) {
-        store.isSliding = true;
-      }
+    // TODO: Can actually just be a sphere cast to simplify logic.
+    const [centerTest] = capsuleCastMTD(
+      capsule.radius / 4,
+      capsule.halfHeight,
+      matrix,
+      pool.vecA.set(0, -1, 0),
+      snapToGround,
+    );
+
+    if (store.hitInfo && centerTest) {
+      let angle = 0;
+      // A raycast gives a more accurate normal.
+      const rayHit = detectGround(snapToGround, false);
 
       store.isGrounded = true;
 
       if (rayHit) {
         store.groundNormal.copy(rayHit.normal);
+        angle = calculateSlope(rayHit.normal);
       } else {
         store.groundNormal.copy(store.hitInfo.normal);
+        angle = calculateSlope(store.hitInfo.normal);
       }
 
+      if (angle >= slopeLimit) {
+        store.isSliding = true;
+      }
+
+      // console.log('collision grounded');
       return;
     }
 
     const hit = detectGround(snapToGround, true);
 
-    if (hit) {
-      // console.log('isGrounded cast');
+    if (hit && centerTest) {
       const angle = calculateSlope(hit.normal);
 
-      if (hit && angle <= slopeLimit) {
+      if (angle >= slopeLimit) {
         store.isSliding = true;
       }
 
@@ -218,19 +237,26 @@ export function CharacterController({
       deltaVector.subVectors(hit.location, store.character.position);
 
       // Only snap to ground if we are above nearly flat terrain.
-      // It's a bit of a workaround but it works for now.
-      if (deltaVector.length() > TOLERANCE && Math.abs(angle) <= 10) {
+      // It's a bit of a workaround but it works for now.www
+      if (deltaVector.length() > TOLERANCE && Math.abs(angle) <= 30) {
         store.character.position.copy(hit.location);
       }
+
+      // console.log('cc grounded');
     }
 
     if (nearGround) {
-      const nearGroundHit = detectGround(nearGround, true);
+      // const nearGroundHit = detectGround(nearGround, true);
+      const nearGroundHit = capsuleCastMTD(
+        capsule.radius / 4,
+        capsule.halfHeight,
+        matrix,
+        pool.vecA.set(0, -1, 0),
+        nearGround,
+      );
       if (nearGroundHit) store.isNearGround = true;
     }
-
-    // console.log('Is NOT grounded');
-  }, [store, detectGround, snapToGround, calculateSlope, slopeLimit, nearGround, pool.vecA]);
+  }, [store, detectGround, snapToGround, calculateSlope, slopeLimit, nearGround, pool]);
 
   const updateMovementMode = () => {
     // Set character movement state. We have a cooldown to prevent false positives.
@@ -267,16 +293,26 @@ export function CharacterController({
       store.maxDistance,
     );
 
-    if (store.hitInfo) {
-      // Discard changes in position smaller than our tolerance.
-      store.deltaVector.subVectors(store.hitInfo.location, position);
-      const clampedLength = Math.max(store.deltaVector.length() - TOLERANCE, 0);
-      store.deltaVector.normalize().multiplyScalar(clampedLength);
+    const newPosition = pool.vecA;
 
-      store.character.position.add(store.deltaVector);
+    if (store.hitInfo) {
+      console.log('collision');
+      newPosition.copy(store.hitInfo.location);
+      // Discard changes in position smaller than our tolerance.
+      // store.deltaVector.subVectors(store.hitInfo.location, position);
+      // const clampedLength = Math.max(store.deltaVector.length() - TOLERANCE, 0);
+      // store.deltaVector.normalize().multiplyScalar(clampedLength);
+
+      // store.character.position.add(store.deltaVector);
     } else {
-      store.character.position.add(store.movement);
+      newPosition.copy(position).add(store.movement);
+      // store.character.position.add(store.movement);
     }
+
+    store.deltaVector.subVectors(newPosition, position);
+    store.character.position.add(store.deltaVector);
+    // Updating the matrix for later calculations. But I'm not sure it is necessary!
+    store.character.updateMatrix();
   };
 
   useUpdate((_, dt) => {
