@@ -89,6 +89,7 @@ export function CapsuleCastDebug({
 
           {isInit && (
             <>
+              {console.log(capOriginRef.current.position, direction, hitDistanceRef)}
               <RayWireframe origin={capOriginRef.current.position} direction={direction} distance={hitDistanceRef} />
               <group ref={raySplitRef}>
                 <RayWireframe
@@ -101,9 +102,12 @@ export function CapsuleCastDebug({
             </>
           )}
           {hitInfoRef && (
-            <Sphere ref={pointRef} args={[0.05]} position={hitInfoRef.current?.point}>
-              <meshBasicMaterial color="red" />
-            </Sphere>
+            <>
+              {/* @ts-ignore */}
+              <Sphere ref={pointRef} args={[0.05]} position={hitInfoRef.current?.point}>
+                <meshBasicMaterial color="red" />
+              </Sphere>
+            </>
           )}
         </>,
         scene,

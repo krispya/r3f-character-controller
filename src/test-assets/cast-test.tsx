@@ -1,5 +1,5 @@
 import { Sphere } from '@react-three/drei';
-import { applyProps, useUpdate, Vector3 } from '@react-three/fiber';
+import { applyProps, useUpdate } from '@react-three/fiber';
 import { Instance } from '@react-three/fiber/dist/declarations/src/core/renderer';
 import { HitInfo } from 'character/character-controller';
 import { capsuleCast } from 'collider/scene-queries/capsule-cast';
@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 type CastTestProps = {
-  position?: Vector3;
+  position?: THREE.Vector3 | [x: number, y: number, z: number];
   radius?: number;
   halfHeight?: number;
   maxDistance?: number;
@@ -50,6 +50,7 @@ export function CastTest({
 
   return (
     <>
+      {/* @ts-ignore */}
       <Sphere ref={ref} args={[radius]} position={position}>
         <meshStandardMaterial />
       </Sphere>
