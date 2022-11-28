@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { Unity } from './unity';
 
+const DEFAULT_TOLERANCE = 1e-5;
+
 export function quatDamp(current: THREE.Quaternion, target: THREE.Quaternion, lambda: number, delta: number) {
   const angleTo = current.angleTo(target);
 
@@ -85,4 +87,8 @@ export function notEqualToZero(num: number) {
 
 export function equalToZero(num: number) {
   return Math.abs(num) < Number.EPSILON;
+}
+
+export function isEqualTolerance(x: number, y: number, tolerance?: number) {
+  return Math.abs(x - y) < (tolerance ?? DEFAULT_TOLERANCE);
 }

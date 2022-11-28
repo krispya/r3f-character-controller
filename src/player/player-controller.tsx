@@ -125,6 +125,9 @@ export function PlayerController({
       debug={props.debug}
       capsule={props.capsule}
       slopeLimit={props.slopeLimit}
+      groundOffset={props.groundOffset}
+      bigGroundOffset={props.bigGroundOffset}
+      nearGround={props.nearGround}
       transform={transform}>
       {children}
       <Walking movement={() => store.walk} speed={walkSpeed} />

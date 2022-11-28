@@ -18,9 +18,9 @@ export function PlayerRig() {
     store.previous = store.active;
     store.active = actions[name];
 
-    if (store.previous === store.active) return;
+    if (store.previous === store.active || !store.previous || !store.active) return;
 
-    if (store.previous && store.previous !== store.active) {
+    if (store.previous !== store.active) {
       store.previous.fadeOut(duration);
     }
 

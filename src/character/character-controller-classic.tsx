@@ -12,6 +12,7 @@ import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
 import { Character } from './stores/character';
 // import { raycast } from 'collider/scene-queries/raycast';
 import { computeCapsulePenetration, PenetrationInfo } from 'collider/scene-queries/compute-capsule-penetration';
+import { isEqualTolerance } from 'utilities/math';
 
 export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vector3 };
 
@@ -57,6 +58,7 @@ export type CharacterControllerProps = {
   capsule: CapsuleConfig;
   slopeLimit?: number;
   groundOffset?: number;
+  bigGroundOffset?: number;
   nearGround?: number | false;
   transform?: TransformFn;
 };
@@ -71,6 +73,7 @@ export function CharacterController({
   capsule,
   transform,
   groundOffset = 0.1,
+  bigGroundOffset = 0.3,
   nearGround = 1,
   slopeLimit = 45,
 }: CharacterControllerProps) {
@@ -165,36 +168,47 @@ export function CharacterController({
       store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.movement.y * 0.25);
 
       // TODO: Can actually just be a sphere cast to simplify logic.
-      const [centerTest] = capsuleCastMTD(
-        capsule.radius / 4,
+      const [groundTest] = capsuleCastMTD(
+        capsule.radius / 3,
         capsule.halfHeight,
         matrix,
         pool.vecA.set(0, -1, 0),
         groundOffset,
       );
 
-      if (centerTest) store.groundNormal.copy(centerTest.impactNormal);
+      if (groundTest) store.groundNormal.copy(groundTest.impactNormal);
       else if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
+      else store.groundNormal.set(0, 0, 0);
 
       const angle = calculateSlope(store.groundNormal);
 
-      // If our ground test from the center of the capsule fails we might be hanging over nothing.
-      // But this will also fail if we are walking up a steep slope. So we check the angle of the
-      // tri we intersected with. If it is above our slope limit, we slide.
-      // In some situations it is also possible to get stuck intersecting a tri oriented horizontally
-      // while hanging off a ledge. Here we simply check if the angle is mostly flat.
-      // We can safely assume this since if we are on flat ground the ground test would not fail in the first place.
-      if (!centerTest && (angle > slopeLimit || angle < 10)) {
-        store.isGrounded = false;
+      // We do a small and then big ground test to be sure if we are walking on a steep slope
+      // or hovering over a drop.
+      if (!groundTest) {
+        const [bigGroundTest] = capsuleCastMTD(
+          capsule.radius / 3,
+          capsule.halfHeight,
+          matrix,
+          pool.vecA.set(0, -1, 0),
+          bigGroundOffset,
+        );
+
+        if (bigGroundTest && isEqualTolerance(calculateSlope(bigGroundTest.impactNormal), angle)) {
+          store.isGrounded = true;
+        } else if (bigGroundTest && calculateSlope(bigGroundTest.impactNormal) === 0 && angle === 90) {
+          // noop for stairs. TODO rewrite the fuck outta this.
+        } else {
+          store.isGrounded = false;
+        }
       }
 
-      if (angle > slopeLimit && !(angle === 90 || angle === 0)) {
+      if (store.isGrounded && angle > slopeLimit && !(angle === 90 || angle === 0)) {
         store.isSliding = true;
       }
 
       if (nearGround && store.movement.y <= 0) {
         const [nearGroundHit] = capsuleCastMTD(
-          capsule.radius / 4,
+          capsule.radius / 3,
           capsule.halfHeight,
           matrix,
           pool.vecA.set(0, -1, 0),
@@ -203,7 +217,7 @@ export function CharacterController({
         if (nearGroundHit) store.isNearGround = true;
       }
     },
-    [calculateSlope, nearGround, pool, slopeLimit, groundOffset, store],
+    [store, pool.vecA, groundOffset, calculateSlope, slopeLimit, nearGround, bigGroundOffset],
   );
 
   const updateMovementMode = () => {
@@ -230,7 +244,6 @@ export function CharacterController({
 
   const moveCharacter = (dt: number) => {
     const { boundingCapsule: capsule, position } = store.character;
-    store.groundNormal.set(0, 0, 0);
 
     store.character.position.addScaledVector(store.movement, dt);
     store.character.updateMatrixWorld();
