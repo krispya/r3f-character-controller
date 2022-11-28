@@ -149,7 +149,7 @@ export function CharacterController({
   }, [capsule, store]);
 
   const calculateSlope = useCallback(
-    (normal: THREE.Vector3) => {
+    function calculateSlope(normal: THREE.Vector3) {
       const upVec = pool.vecA.set(0, 1, 0);
       const radians = upVec.angleTo(normal);
       return THREE.MathUtils.radToDeg(radians);
@@ -158,7 +158,7 @@ export function CharacterController({
   );
 
   const updateGroundedState = useCallback(
-    (dt: number) => {
+    function updateGroundedState(dt: number) {
       store.character.updateMatrixWorld();
       const { boundingCapsule: capsule, matrix } = store.character;
 
@@ -260,7 +260,7 @@ export function CharacterController({
     store.character.position.add(store.depenetrateVector);
   };
 
-  useUpdate((_, dt) => {
+  useUpdate(function mainLoopCCT(_, dt) {
     calculateMovement(dt);
 
     for (let i = 0; i < STEPS; i++) {
@@ -272,7 +272,7 @@ export function CharacterController({
   }, Stages.Fixed);
 
   // Sync mesh so movement is visible.
-  useUpdate((_, dt) => {
+  useUpdate(function syncLoopCCT(_, dt) {
     // We update the character matrix manually since it isn't part of the scene graph.
     if (transform) transform(store.character, dt);
     store.character.updateMatrix();
@@ -280,7 +280,7 @@ export function CharacterController({
     meshRef.current.rotation.copy(store.character.rotation);
   }, Stages.Update);
 
-  useUpdate(() => {
+  useUpdate(function debugLoopCCT() {
     if (!capsuleDebugRef.current || !debug) return;
     capsuleDebugRef.current.position.copy(store.character.position);
     capsuleDebugRef.current.updateMatrix();
