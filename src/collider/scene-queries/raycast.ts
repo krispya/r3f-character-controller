@@ -21,7 +21,14 @@ export const raycast: RaycastFn = (origin, direction, maxDistance) => {
   const hit = raycaster.intersectObject(collider, false);
 
   if (hit.length > 0 && hit[0].face) {
-    return new HitInfo(collider, hit[0].point, hit[0].point, hit[0].face.normal, hit[0].distance);
+    return new HitInfo({
+      collider,
+      normal: direction,
+      impactPoint: hit[0].point,
+      location: hit[0].point,
+      impactNormal: hit[0].face.normal,
+      distance: hit[0].distance,
+    });
   }
   return null;
 };

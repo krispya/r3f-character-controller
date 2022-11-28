@@ -1,7 +1,7 @@
 import { SmoothDamp } from '@gsimone/smoothdamp';
 import { Stages, useUpdate } from '@react-three/fiber';
 import { useCameraController } from 'camera/stores/camera-store';
-import { CharacterController, CharacterControllerProps, TransformFn } from 'character/character-controller';
+import { CharacterController, CharacterControllerProps, TransformFn } from 'character/character-controller-classic';
 import { Falling, FallingProps } from 'character/modifiers/falling';
 import { Gravity, GravityProps } from 'character/modifiers/gravity';
 import { Jump, JumpProps } from 'character/modifiers/jump';

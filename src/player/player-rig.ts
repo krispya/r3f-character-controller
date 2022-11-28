@@ -68,7 +68,11 @@ export function PlayerRig() {
 
     if (state.matches('falling')) {
       if (isNearGround) {
-        fsm.send('WALK');
+        if (velocity.x === 0 && velocity.z === 0) {
+          fsm.send('IDLE');
+        } else {
+          fsm.send('WALK');
+        }
       } else {
         fsm.send('FALL');
       }

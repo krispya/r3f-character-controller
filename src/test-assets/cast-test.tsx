@@ -2,7 +2,7 @@ import { Sphere } from '@react-three/drei';
 import { applyProps, useUpdate } from '@react-three/fiber';
 import { Instance } from '@react-three/fiber/dist/declarations/src/core/renderer';
 import { HitInfo } from 'character/character-controller';
-import { capsuleCast } from 'collider/scene-queries/capsule-cast';
+import { capsuleCast } from 'collider/scene-queries/capsule-cast-old';
 import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleCastDebug } from 'collider/scene-queries/debug/capsule-cast-debug';
 import { useEffect, useRef, useState } from 'react';

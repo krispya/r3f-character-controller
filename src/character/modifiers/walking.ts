@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
 
 export const DEFAULT_WALK_SPEED = 5;
-const DEFAULT_MAX_ANGLE = 55;
+const DEFAULT_MAX_ANGLE = 65;
 
 export type WalkingProps = {
   speed?: number;
@@ -16,7 +16,12 @@ export type WalkingProps = {
 export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = true }: WalkingProps) {
   const { addModifier, removeModifier, getIsWalking, getGroundNormal } = useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
-  const [store] = useState({ upVec: new THREE.Vector3(0, 1, 0) });
+  const [store] = useState({
+    upVec: new THREE.Vector3(0, 1, 0),
+    slopeRotation: new THREE.Quaternion(),
+    adjustedVelocity: new THREE.Vector3(),
+    input: new THREE.Vector3(),
+  });
 
   useLayoutEffect(() => {
     addModifier(modifier);
@@ -24,9 +29,14 @@ export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = 
   }, [addModifier, modifier, removeModifier]);
 
   const adjustVelocityToSlope = (velocity: THREE.Vector3) => {
+    const { slopeRotation, upVec, adjustedVelocity } = store;
+
     const normal = getGroundNormal();
-    const slopeRotation = new THREE.Quaternion().setFromUnitVectors(store.upVec, normal);
-    const adjustedVelocity = new THREE.Vector3().copy(velocity).applyQuaternion(slopeRotation);
+    slopeRotation.setFromUnitVectors(upVec, normal);
+    adjustedVelocity.copy(velocity).applyQuaternion(slopeRotation);
+
+    // Push our velocity a little down so we stick to slopes better.
+    adjustedVelocity.y -= 0.05;
 
     const radians = store.upVec.angleTo(normal);
     const angle = THREE.MathUtils.radToDeg(radians);
@@ -40,8 +50,9 @@ export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = 
 
   useUpdate(() => {
     if (!movement) return;
+    const { input } = store;
 
-    const input = movement();
+    input.copy(movement());
     const isWalking = getIsWalking();
 
     if (isWalking && input.length() > 0) {

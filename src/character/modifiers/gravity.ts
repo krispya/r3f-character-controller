@@ -10,7 +10,7 @@ export type GravityProps = {
 
 export const GRAVITY = -9.81;
 
-export function Gravity({ gravity = GRAVITY, maxFallSpeed = -50 }: GravityProps) {
+export function Gravity({ gravity = GRAVITY, maxFallSpeed = -30 }: GravityProps) {
   const { addModifier, removeModifier, getIsGroundedMovement, getIsSliding } = useContext(CharacterControllerContext);
   const modifier = createModifier('gravity');
 
@@ -23,10 +23,9 @@ export function Gravity({ gravity = GRAVITY, maxFallSpeed = -50 }: GravityProps)
     const isGrounded = getIsGroundedMovement();
     const isSliding = getIsSliding();
 
-    // Our isGrounded detection has an offset so the state sets early when falling.
-    // We check the previous isGrounded so we get an extra frame of falling to make sure we touch the ground.
     if (isGrounded) {
-      modifier.value.y = 0;
+      if (isSliding) modifier.value.y = Math.max(modifier.value.y + gravity * delta, maxFallSpeed);
+      else modifier.value.y = 0;
     } else {
       modifier.value.y = Math.max(modifier.value.y + gravity * delta, maxFallSpeed);
     }

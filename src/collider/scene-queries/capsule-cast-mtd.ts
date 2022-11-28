@@ -26,12 +26,12 @@ const OVERLAP_RATIO = 0.2;
 
 const store = {
   capsule: new Capsule(),
-  point: new THREE.Vector3(),
+  impactPoint: new THREE.Vector3(),
   triPoint: new THREE.Vector3(),
   capsulePoint: new THREE.Vector3(),
   segment: new THREE.Line3(),
   aabb: new THREE.Box3(),
-  normal: new THREE.Vector3(),
+  impactNormal: new THREE.Vector3(),
   castStart: new THREE.Vector3(),
   castEnd: new THREE.Vector3(),
   collision: false,
@@ -42,12 +42,12 @@ const store = {
 export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, direction, maxDistance) => {
   let {
     capsule,
-    point,
+    impactPoint,
     triPoint,
     capsulePoint,
     segment,
     aabb,
-    normal,
+    impactNormal,
     castStart,
     castEnd,
     collision,
@@ -101,9 +101,9 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
           segment.start.addScaledVector(deltaDirection, depth);
           segment.end.addScaledVector(deltaDirection, depth);
 
-          point.copy(triPoint);
+          impactPoint.copy(triPoint);
           segment.getCenter(castEnd);
-          tri.getNormal(normal);
+          tri.getNormal(impactNormal);
 
           collision = true;
         }
@@ -113,7 +113,14 @@ export const capsuleCastMTD: CapsuleCastFn = (radius, halfHeight, transform, dir
 
   if (collision) {
     return [
-      new HitInfo(collider, point, castEnd, normal, castStart.distanceTo(castEnd)),
+      new HitInfo({
+        collider,
+        normal: direction,
+        location: castEnd,
+        impactNormal,
+        impactPoint,
+        distance: castStart.distanceTo(castEnd),
+      }),
       new MTD(depth, deltaDirection),
     ];
   }

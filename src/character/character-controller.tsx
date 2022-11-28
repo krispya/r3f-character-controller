@@ -16,10 +16,11 @@ export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vec
 
 export type HitInfo = {
   collider: THREE.Object3D;
-  point: THREE.Vector3;
   normal: THREE.Vector3;
   distance: number;
   location: THREE.Vector3;
+  impactPoint: THREE.Vector3;
+  impactNormal: THREE.Vector3;
 };
 
 export type MTD = {
@@ -173,16 +174,10 @@ export function CharacterController({
   );
 
   const updateGroundedState = useCallback(() => {
-    store.isSliding = false;
     store.isGrounded = false;
+    store.isSliding = false;
     store.isNearGround = false;
     store.groundNormal.set(0, 0, 0);
-
-    // console.log(store.deltaVector.y);
-
-    // if (store.deltaVector.y > 0) {
-    //   store.isGrounded = true;
-    // }
 
     // If we are moving up, we don't need to check for the ground.
     if (store.movement.y > 0) return;
@@ -247,7 +242,7 @@ export function CharacterController({
 
     if (nearGround) {
       // const nearGroundHit = detectGround(nearGround, true);
-      const nearGroundHit = capsuleCastMTD(
+      const [nearGroundHit] = capsuleCastMTD(
         capsule.radius / 4,
         capsule.halfHeight,
         matrix,
@@ -296,21 +291,17 @@ export function CharacterController({
     const newPosition = pool.vecA;
 
     if (store.hitInfo) {
-      console.log('collision');
       newPosition.copy(store.hitInfo.location);
-      // Discard changes in position smaller than our tolerance.
-      // store.deltaVector.subVectors(store.hitInfo.location, position);
-      // const clampedLength = Math.max(store.deltaVector.length() - TOLERANCE, 0);
-      // store.deltaVector.normalize().multiplyScalar(clampedLength);
-
-      // store.character.position.add(store.deltaVector);
     } else {
       newPosition.copy(position).add(store.movement);
-      // store.character.position.add(store.movement);
     }
 
     store.deltaVector.subVectors(newPosition, position);
-    store.character.position.add(store.deltaVector);
+    const temp = pool.vecB.copy(store.deltaVector);
+    const clampedLength = Math.max(temp.length() - TOLERANCE, 0);
+    temp.normalize().multiplyScalar(clampedLength);
+
+    store.character.position.add(temp);
     // Updating the matrix for later calculations. But I'm not sure it is necessary!
     store.character.updateMatrix();
   };
