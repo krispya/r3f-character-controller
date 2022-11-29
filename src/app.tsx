@@ -49,17 +49,23 @@ function Game() {
       <CameraController />
 
       <Space />
-      <ambientLight intensity={0.65} />
+      <ambientLight intensity={0.5} />
       <hemisphereLight intensity={0.95} color="#eacb6e" groundColor="red" />
       <spotLight
         castShadow
         color="#edbf6f"
-        intensity={100}
+        intensity={200}
         position={[80, 50, -40]}
         angle={0.35}
         penumbra={1}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[2048 * 2, 2048 * 2]}
         shadow-bias={-0.00001}
+        shadow-near={0.5}
+        shadow-far={50}
+        shadow-left={-20}
+        shadow-bottom={-20}
+        shadow-right={20}
+        shadow-top={20}
       />
     </Suspense>
   );
