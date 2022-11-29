@@ -11,6 +11,7 @@ import { useInputs } from 'input/input-controller';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { PlayerRig } from './player-rig';
+import { Sliding } from 'character/modifiers/sliding';
 
 type PlayerControllerProps = CharacterControllerProps &
   Omit<GravityProps, 'alwaysOn'> &
@@ -134,6 +135,7 @@ export function PlayerController({
       <Falling movement={() => store.walk} speed={walkSpeed * airControl} />
       <Jump jump={() => inputs.jump} jumpSpeed={props.jumpSpeed} />
       <Gravity gravity={props.gravity} maxFallSpeed={props.maxFallSpeed} />
+      <Sliding />
       <PlayerRig />
     </CharacterController>
   );

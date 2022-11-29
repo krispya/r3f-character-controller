@@ -3,16 +3,16 @@ import { CharacterControllerContext } from 'character/contexts/character-control
 import { useContext, useLayoutEffect } from 'react';
 import { createModifier } from './use-modifiers';
 
-export type GravityProps = {
+export type SlidingProps = {
   gravity?: number;
   maxFallSpeed?: number;
 };
 
-export const DEFAULT_GRAVITY = -9.81;
+export const DEFAULT_SLIDING_GRAVITY = -20;
 
-export function Gravity({ gravity = DEFAULT_GRAVITY, maxFallSpeed = -30 }: GravityProps) {
-  const { addModifier, removeModifier, getIsGroundedMovement } = useContext(CharacterControllerContext);
-  const modifier = createModifier('gravity');
+export function Sliding({ gravity = DEFAULT_SLIDING_GRAVITY, maxFallSpeed = -30 }: SlidingProps) {
+  const { addModifier, removeModifier, getIsSliding } = useContext(CharacterControllerContext);
+  const modifier = createModifier('sliding');
 
   useLayoutEffect(() => {
     addModifier(modifier);
@@ -20,12 +20,12 @@ export function Gravity({ gravity = DEFAULT_GRAVITY, maxFallSpeed = -30 }: Gravi
   }, [addModifier, gravity, modifier, removeModifier]);
 
   useUpdate((_, delta) => {
-    const isGrounded = getIsGroundedMovement();
+    const isSliding = getIsSliding();
 
-    if (isGrounded) {
-      modifier.value.y = 0;
-    } else {
+    if (isSliding) {
       modifier.value.y = Math.max(modifier.value.y + gravity * delta, maxFallSpeed);
+    } else {
+      modifier.value.y = 0;
     }
   });
 

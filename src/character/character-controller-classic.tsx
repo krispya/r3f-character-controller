@@ -7,12 +7,12 @@ import { CharacterControllerContext } from './contexts/character-controller-cont
 import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
 import { Capsule } from 'collider/geometry/capsule';
-import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
 import { Character } from './stores/character';
-// import { raycast } from 'collider/scene-queries/raycast';
 import { computeCapsulePenetration, PenetrationInfo } from 'collider/scene-queries/compute-capsule-penetration';
 import { isEqualTolerance } from 'utilities/math';
+import { sphereCast } from 'collider/scene-queries/sphere-cast';
+import { capsuleCast } from 'collider/scene-queries/capsule-cast';
 
 export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vector3 };
 
@@ -72,7 +72,7 @@ export function CharacterController({
   debug = false,
   capsule,
   transform,
-  groundOffset = 0.1,
+  groundOffset = 0.05,
   bigGroundOffset = 0.3,
   nearGround = 1,
   slopeLimit = 45,
@@ -167,16 +167,21 @@ export function CharacterController({
       // Set isGrounded true if our depenetration vector y is larger than a quarter of movement y.
       store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.movement.y * 0.25);
 
-      // TODO: Can actually just be a sphere cast to simplify logic.
-      const [groundTest] = capsuleCastMTD(
-        capsule.radius / 3,
+      const smallRadius = capsule.radius / 2.8;
+      const capsuleFoot = pool.vecB.copy(store.character.position);
+      capsuleFoot.y -= capsule.halfHeight - smallRadius;
+
+      // This is a capsule cast and not sphere cast so that the closest tri normal is consistent.
+      const groundHit = capsuleCast(
+        capsule.radius / 2.8,
         capsule.halfHeight,
         matrix,
         pool.vecA.set(0, -1, 0),
         groundOffset,
       );
+      // const groundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), groundOffset);
 
-      if (groundTest) store.groundNormal.copy(groundTest.impactNormal);
+      if (groundHit) store.groundNormal.copy(groundHit.impactNormal);
       else if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
       else store.groundNormal.set(0, 0, 0);
 
@@ -184,18 +189,13 @@ export function CharacterController({
 
       // We do a small and then big ground test to be sure if we are walking on a steep slope
       // or hovering over a drop.
-      if (!groundTest) {
-        const [bigGroundTest] = capsuleCastMTD(
-          capsule.radius / 3,
-          capsule.halfHeight,
-          matrix,
-          pool.vecA.set(0, -1, 0),
-          bigGroundOffset,
-        );
+      if (!groundHit) {
+        const bigGroundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), bigGroundOffset);
 
-        if (bigGroundTest && isEqualTolerance(calculateSlope(bigGroundTest.impactNormal), angle)) {
+        if (bigGroundHit && isEqualTolerance(calculateSlope(bigGroundHit.impactNormal), angle) && angle !== 90) {
+          console.log(calculateSlope(bigGroundHit.impactNormal), angle);
           store.isGrounded = true;
-        } else if (bigGroundTest && calculateSlope(bigGroundTest.impactNormal) === 0 && angle === 90) {
+        } else if (bigGroundHit && calculateSlope(bigGroundHit.impactNormal) === 0 && angle === 90) {
           // noop for stairs. TODO rewrite the fuck outta this.
         } else {
           store.isGrounded = false;
@@ -207,17 +207,11 @@ export function CharacterController({
       }
 
       if (nearGround && store.movement.y <= 0) {
-        const [nearGroundHit] = capsuleCastMTD(
-          capsule.radius / 3,
-          capsule.halfHeight,
-          matrix,
-          pool.vecA.set(0, -1, 0),
-          nearGround,
-        );
+        const nearGroundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), nearGround);
         if (nearGroundHit) store.isNearGround = true;
       }
     },
-    [store, pool.vecA, groundOffset, calculateSlope, slopeLimit, nearGround, bigGroundOffset],
+    [store, pool, groundOffset, calculateSlope, slopeLimit, nearGround, bigGroundOffset],
   );
 
   const updateMovementMode = () => {
