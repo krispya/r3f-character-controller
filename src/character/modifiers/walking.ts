@@ -14,8 +14,11 @@ export type WalkingProps = {
 };
 
 export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = true }: WalkingProps) {
-  const { addModifier, removeModifier, getIsWalking, getGroundNormal } = useContext(CharacterControllerContext);
+  const { addModifier, removeModifier, getIsWalking, getGroundNormal, getGroundAngle } =
+    useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
+
+  const [pool] = useState({ vecA: new THREE.Vector3() });
   const [store] = useState({
     upVec: new THREE.Vector3(0, 1, 0),
     slopeRotation: new THREE.Quaternion(),
@@ -28,20 +31,28 @@ export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = 
     return () => removeModifier(modifier);
   }, [addModifier, modifier, removeModifier]);
 
+  function calculateSlope(normal: THREE.Vector3) {
+    const radians = store.upVec.angleTo(normal);
+    return THREE.MathUtils.radToDeg(radians);
+  }
+
   const adjustVelocityToSlope = (velocity: THREE.Vector3) => {
     const { slopeRotation, upVec, adjustedVelocity } = store;
 
     const normal = getGroundNormal();
+    const angle = getGroundAngle();
+
+    // Try to stick to the ground.
+    if (angle < 5) velocity.y -= 1;
+
     slopeRotation.setFromUnitVectors(upVec, normal);
     adjustedVelocity.copy(velocity).applyQuaternion(slopeRotation);
 
-    // Push our velocity a little down so we stick to slopes better.
-    adjustedVelocity.y -= 0.05;
+    const relativeSlopeAngle = calculateSlope(adjustedVelocity) - 90;
+    const temp = pool.vecA.copy(adjustedVelocity).multiplyScalar(relativeSlopeAngle / 100);
+    adjustedVelocity.add(temp);
 
-    const radians = store.upVec.angleTo(normal);
-    const angle = THREE.MathUtils.radToDeg(radians);
-
-    if (adjustedVelocity.y < 0 && angle < DEFAULT_MAX_ANGLE) {
+    if (angle !== 0 && angle < DEFAULT_MAX_ANGLE) {
       return adjustedVelocity;
     }
 

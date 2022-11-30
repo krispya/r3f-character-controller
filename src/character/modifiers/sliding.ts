@@ -11,7 +11,7 @@ export type SlidingProps = {
 export const DEFAULT_SLIDING_GRAVITY = -20;
 
 export function Sliding({ gravity = DEFAULT_SLIDING_GRAVITY, maxFallSpeed = -30 }: SlidingProps) {
-  const { addModifier, removeModifier, getIsSliding } = useContext(CharacterControllerContext);
+  const { addModifier, removeModifier, getIsSliding, getGroundAngle } = useContext(CharacterControllerContext);
   const modifier = createModifier('sliding');
 
   useLayoutEffect(() => {
@@ -21,9 +21,10 @@ export function Sliding({ gravity = DEFAULT_SLIDING_GRAVITY, maxFallSpeed = -30 
 
   useUpdate((_, delta) => {
     const isSliding = getIsSliding();
+    const angle = getGroundAngle();
 
     if (isSliding) {
-      modifier.value.y = Math.max(modifier.value.y + gravity * delta, maxFallSpeed);
+      modifier.value.y -= Math.max(angle * 0.2 * delta, maxFallSpeed);
     } else {
       modifier.value.y = 0;
     }

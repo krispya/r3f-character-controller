@@ -2,6 +2,8 @@ import { useCollider } from 'collider/stores/collider-store';
 import * as THREE from 'three';
 import { HitInfo } from './objects/hit-info';
 
+// WARNING: This a rough approximation of whay a real sphere cast would be.
+
 export type SphereCastFn = (
   radius: number,
   origin: THREE.Vector3,

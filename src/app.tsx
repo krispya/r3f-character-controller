@@ -37,7 +37,7 @@ function Game() {
       <PlayerController
         id="player"
         position={[4, 0, -9]}
-        walkSpeed={5}
+        walkSpeed={3.8}
         airControl={0.5}
         capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
         // slopeLimit={90}

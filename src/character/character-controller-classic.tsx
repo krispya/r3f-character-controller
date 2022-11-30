@@ -10,9 +10,7 @@ import { Capsule } from 'collider/geometry/capsule';
 import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
 import { Character } from './stores/character';
 import { computeCapsulePenetration, PenetrationInfo } from 'collider/scene-queries/compute-capsule-penetration';
-import { isEqualTolerance } from 'utilities/math';
 import { sphereCast } from 'collider/scene-queries/sphere-cast';
-import { capsuleCast } from 'collider/scene-queries/capsule-cast';
 
 export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vector3 };
 
@@ -75,7 +73,7 @@ export function CharacterController({
   groundOffset = 0.05,
   bigGroundOffset = 0.3,
   nearGround = 1,
-  slopeLimit = 45,
+  slopeLimit = 47,
 }: CharacterControllerProps) {
   const meshRef = useRef<THREE.Group>(null!);
   const [addCharacter, removeCharacter] = useCharacterController((state) => [
@@ -95,6 +93,7 @@ export function CharacterController({
     isSliding: false,
     isNearGround: false,
     groundNormal: new THREE.Vector3(),
+    groundAngle: 0,
     // Character store
     character: new Character(capsule.radius, capsule.height / 2),
     velocity: new THREE.Vector3(),
@@ -167,8 +166,6 @@ export function CharacterController({
       store.isGrounded = false;
       store.groundNormal.set(0, 0, 0);
 
-      if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
-
       const smallRadius = capsule.radius * 0.9;
       const capsuleFoot = pool.vecB.copy(store.character.position);
       capsuleFoot.y -= capsule.halfHeight - smallRadius;
@@ -177,7 +174,9 @@ export function CharacterController({
       // Set isGrounded true if our depenetration vector y is larger than a quarter of movement y.
       // Some notes. This works well over all, but has a weakness when passing from a slope to level ground.
       // It'll flag false then true as the transition occurs.
-      // store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.movement.y * 0.25);
+      // store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.velocity.y * 0.25);
+
+      // console.log(test);
 
       const groundHit = sphereCast(
         smallRadius,
@@ -186,9 +185,17 @@ export function CharacterController({
         sphereTravelDistance,
       );
 
+      if (groundHit) store.groundNormal.copy(groundHit.impactNormal);
+      else if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
+
+      store.groundAngle = calculateSlope(store.groundNormal);
       store.isGrounded = !!groundHit;
 
-      console.log(store.isGrounded);
+      if (store.isGrounded && store.groundAngle > slopeLimit && !(store.groundAngle > 85 || store.groundAngle === 0)) {
+        store.isSliding = true;
+      }
+
+      // console.log(store.isGrounded);
 
       // // This is a capsule cast and not sphere cast so that the closest tri normal is consistent.
       // const groundHit = capsuleCast(
@@ -316,14 +323,16 @@ export function CharacterController({
     capsuleDebugRef.current.updateMatrix();
   }, Stages.Late);
 
-  const getVelocity = useCallback(() => store.velocity, [store]);
-  const getDeltaVector = useCallback(() => store.depenetrateVector, [store]);
-  const getIsGroundedMovement = useCallback(() => store.isGroundedMovement, [store]);
-  const getIsWalking = useCallback(() => store.isGroundedMovement, [store]);
-  const getIsFalling = useCallback(() => store.isFalling, [store]);
-  const getIsSliding = useCallback(() => store.isSliding, [store]);
-  const getIsNearGround = useCallback(() => store.isNearGround, [store]);
-  const getGroundNormal = useCallback(() => store.groundNormal, [store]);
+  const getVelocity = () => store.velocity;
+  const getDeltaVector = () => store.depenetrateVector;
+  const getIsGroundedMovement = () => store.isGroundedMovement;
+  const getIsWalking = () => store.isGroundedMovement;
+  const getIsFalling = () => store.isFalling;
+  const getIsSliding = () => store.isSliding;
+  const getIsNearGround = () => store.isNearGround;
+  const getGroundNormal = () => store.groundNormal;
+  const getSlopeLimit = () => slopeLimit;
+  const getGroundAngle = () => store.groundAngle;
 
   return (
     <CharacterControllerContext.Provider
@@ -339,6 +348,8 @@ export function CharacterController({
         getGroundNormal,
         getIsSliding,
         getIsNearGround,
+        getSlopeLimit,
+        getGroundAngle,
       }}>
       <group position={capsule.center}>
         <group ref={meshRef}>

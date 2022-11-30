@@ -15,6 +15,8 @@ type CharacterControllerState = {
   getGroundNormal: () => THREE.Vector3;
   getIsSliding: () => boolean;
   getIsNearGround: () => boolean;
+  getSlopeLimit: () => number;
+  getGroundAngle: () => number;
 };
 
 export const CharacterControllerContext = createContext<CharacterControllerState>(null!);

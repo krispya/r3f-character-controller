@@ -9,7 +9,7 @@ export type GravityProps = {
 };
 
 export const DEFAULT_GRAVITY = -9.81;
-const GROUNDED_GRAVITY = -2;
+const GROUNDED_GRAVITY = 0;
 
 export function Gravity({ gravity = DEFAULT_GRAVITY, maxFallSpeed = -30 }: GravityProps) {
   const { addModifier, removeModifier, getIsGroundedMovement } = useContext(CharacterControllerContext);
