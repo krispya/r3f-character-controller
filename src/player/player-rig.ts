@@ -2,6 +2,7 @@ import { useInterpret } from '@xstate/react';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
 import { useContext, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { isEqualTolerance } from 'utilities/math';
 import { playerMachine } from './player-machine';
 import { usePlayer } from './player-store';
 
@@ -62,20 +63,21 @@ export function PlayerRig() {
     const isNearGround = getIsNearGround();
 
     if (state.matches('walking')) {
-      if (velocity.equals(store.zeroVec)) fsm.send('IDLE');
+      if (isEqualTolerance(velocity.x, 0) && isEqualTolerance(velocity.z, 0)) fsm.send('IDLE');
       else fsm.send('WALK');
     }
 
     if (state.matches('falling')) {
-      if (isNearGround) {
-        if (velocity.x === 0 && velocity.z === 0) {
-          fsm.send('IDLE');
-        } else {
-          fsm.send('WALK');
-        }
-      } else {
-        fsm.send('FALL');
-      }
+      // if (isNearGround) {
+      //   if (velocity.x === 0 && velocity.z === 0) {
+      //     fsm.send('IDLE');
+      //   } else {
+      //     fsm.send('WALK');
+      //   }
+      // } else {
+      //   fsm.send('FALL');
+      // }
+      fsm.send('FALL');
     }
   });
 

@@ -164,47 +164,83 @@ export function CharacterController({
 
       store.isNearGround = false;
       store.isSliding = false;
-      // Set isGrounded true if our depenetration vector y is larger than a quarter of movement y.
-      store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.movement.y * 0.25);
+      store.isGrounded = false;
+      store.groundNormal.set(0, 0, 0);
 
-      const smallRadius = capsule.radius / 2.8;
+      if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
+
+      const smallRadius = capsule.radius * 0.9;
       const capsuleFoot = pool.vecB.copy(store.character.position);
       capsuleFoot.y -= capsule.halfHeight - smallRadius;
+      const sphereTravelDistance = capsule.halfHeight - smallRadius + groundOffset;
 
-      // This is a capsule cast and not sphere cast so that the closest tri normal is consistent.
-      const groundHit = capsuleCast(
-        capsule.radius / 2.8,
-        capsule.halfHeight,
-        matrix,
+      // Set isGrounded true if our depenetration vector y is larger than a quarter of movement y.
+      // Some notes. This works well over all, but has a weakness when passing from a slope to level ground.
+      // It'll flag false then true as the transition occurs.
+      // store.isGrounded = store.depenetrateVectorRaw.y > Math.abs(dt * store.movement.y * 0.25);
+
+      const groundHit = sphereCast(
+        smallRadius,
+        store.character.position,
         pool.vecA.set(0, -1, 0),
-        groundOffset,
+        sphereTravelDistance,
       );
-      // const groundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), groundOffset);
 
-      if (groundHit) store.groundNormal.copy(groundHit.impactNormal);
-      else if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
-      else store.groundNormal.set(0, 0, 0);
+      store.isGrounded = !!groundHit;
 
-      const angle = calculateSlope(store.groundNormal);
+      console.log(store.isGrounded);
 
-      // We do a small and then big ground test to be sure if we are walking on a steep slope
-      // or hovering over a drop.
-      if (!groundHit) {
-        const bigGroundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), bigGroundOffset);
+      // // This is a capsule cast and not sphere cast so that the closest tri normal is consistent.
+      // const groundHit = capsuleCast(
+      //   capsule.radius / 2.8,
+      //   capsule.halfHeight,
+      //   matrix,
+      //   pool.vecA.set(0, -1, 0),
+      //   groundOffset,
+      // );
+      // // const groundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), groundOffset);
 
-        if (bigGroundHit && isEqualTolerance(calculateSlope(bigGroundHit.impactNormal), angle) && angle !== 90) {
-          console.log(calculateSlope(bigGroundHit.impactNormal), angle);
-          store.isGrounded = true;
-        } else if (bigGroundHit && calculateSlope(bigGroundHit.impactNormal) === 0 && angle === 90) {
-          // noop for stairs. TODO rewrite the fuck outta this.
-        } else {
-          store.isGrounded = false;
-        }
-      }
+      // if (groundHit) store.groundNormal.copy(groundHit.impactNormal);
+      // else if (store.penInfo) store.groundNormal.copy(store.penInfo.normal);
+      // else store.groundNormal.set(0, 0, 0);
 
-      if (store.isGrounded && angle > slopeLimit && !(angle === 90 || angle === 0)) {
-        store.isSliding = true;
-      }
+      // const angle = calculateSlope(store.groundNormal);
+
+      // if (!store.isGrounded) {
+      //   console.log(
+      //     store.isGrounded,
+      //     store.depenetrateVectorRaw.y,
+      //     Math.abs(dt * store.movement.y * 0.25),
+      //     dt * store.movement.y,
+      //   );
+      //   console.log(store.depenetrateVectorRaw);
+      //   console.log('angle: ', angle);
+      // }
+
+      // // We do a small and then big ground test to be sure if we are walking on a steep slope
+      // // or hovering over a drop.
+      // if (!groundHit) {
+      //   // const bigGroundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), bigGroundOffset);
+      //   const bigGroundHit = capsuleCast(
+      //     capsule.radius / 2.8,
+      //     capsule.halfHeight,
+      //     matrix,
+      //     pool.vecA.set(0, -1, 0),
+      //     bigGroundOffset,
+      //   );
+
+      //   if (bigGroundHit && isEqualTolerance(calculateSlope(bigGroundHit.impactNormal), angle) && angle !== 90) {
+      //     store.isGrounded = true;
+      //   } else if (bigGroundHit && calculateSlope(bigGroundHit.impactNormal) === 0 && angle === 90) {
+      //     // noop for stairs. TODO rewrite the fuck outta this.
+      //   } else {
+      //     store.isGrounded = false;
+      //   }
+      // }
+
+      // if (store.isGrounded && angle > slopeLimit && !(angle === 90 || angle === 0)) {
+      //   store.isSliding = true;
+      // }
 
       if (nearGround && store.movement.y <= 0) {
         const nearGroundHit = sphereCast(smallRadius, capsuleFoot, pool.vecA.set(0, -1, 0), nearGround);

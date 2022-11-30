@@ -13,7 +13,7 @@ export type JumpProps = {
 };
 
 export function Jump({
-  jumpSpeed = 6,
+  jumpSpeed = 8,
   jump,
   jumpDuration = 300,
   // comebackAcceleration = GRAVITY * 2,
