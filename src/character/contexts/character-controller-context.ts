@@ -1,5 +1,6 @@
 import { movementMachine } from 'character/machines/movement-machine';
 import { Modifier } from 'character/modifiers/use-modifiers';
+import { Character } from 'character/stores/character';
 import { createContext } from 'react';
 import { InterpreterFrom } from 'xstate';
 
@@ -17,6 +18,7 @@ type CharacterControllerState = {
   getIsNearGround: () => boolean;
   getSlopeLimit: () => number;
   getGroundAngle: () => number;
+  getCharacter: () => Character;
 };
 
 export const CharacterControllerContext = createContext<CharacterControllerState>(null!);

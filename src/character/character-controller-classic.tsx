@@ -11,6 +11,9 @@ import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
 import { Character } from './stores/character';
 import { computeCapsulePenetration, PenetrationInfo } from 'collider/scene-queries/compute-capsule-penetration';
 import { sphereCast } from 'collider/scene-queries/sphere-cast';
+import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
+import { capsuleCast } from 'collider/scene-queries/capsule-cast';
+import { isEqualTolerance } from 'utilities/math';
 
 export type CapsuleConfig = { radius: number; height: number; center?: THREE.Vector3 };
 
@@ -56,7 +59,6 @@ export type CharacterControllerProps = {
   capsule: CapsuleConfig;
   slopeLimit?: number;
   groundOffset?: number;
-  bigGroundOffset?: number;
   nearGround?: number | false;
   transform?: TransformFn;
 };
@@ -71,7 +73,6 @@ export function CharacterController({
   capsule,
   transform,
   groundOffset = 0.05,
-  bigGroundOffset = 0.3,
   nearGround = 1,
   slopeLimit = 47,
 }: CharacterControllerProps) {
@@ -157,7 +158,7 @@ export function CharacterController({
   );
 
   const updateGroundedState = useCallback(
-    function updateGroundedState(dt: number) {
+    function updateGroundedState() {
       store.character.updateMatrixWorld();
       const { boundingCapsule: capsule, matrix } = store.character;
 
@@ -193,6 +194,22 @@ export function CharacterController({
 
       if (store.isGrounded && store.groundAngle > slopeLimit && !(store.groundAngle > 85 || store.groundAngle === 0)) {
         store.isSliding = true;
+      }
+
+      if (store.movement.y <= 0) {
+        const capHit = capsuleCast(capsule.radius, capsule.halfHeight, matrix, pool.vecA.set(0, -1, 0), 0.2);
+
+        if (capHit) {
+          const deltaVector = pool.vecA;
+          deltaVector.subVectors(capHit.location, store.character.position);
+
+          // Only snap to ground if we are above nearly flat terrain.
+          // It's a bit of a workaround but it works for now.
+          if (deltaVector.length() > TOLERANCE && store.groundAngle <= 10) {
+            store.character.position.copy(capHit.location);
+          }
+          console.log(deltaVector.length(), store.groundAngle, calculateSlope(capHit.impactNormal));
+        }
       }
 
       // console.log(store.isGrounded);
@@ -254,7 +271,7 @@ export function CharacterController({
         if (nearGroundHit) store.isNearGround = true;
       }
     },
-    [store, pool, groundOffset, calculateSlope, slopeLimit, nearGround, bigGroundOffset],
+    [store, pool, groundOffset, calculateSlope, slopeLimit, nearGround],
   );
 
   const updateMovementMode = () => {
@@ -304,7 +321,7 @@ export function CharacterController({
       moveCharacter(1 / STEPS);
     }
 
-    updateGroundedState(dt / STEPS);
+    updateGroundedState();
     updateMovementMode();
   }, Stages.Fixed);
 
@@ -333,6 +350,7 @@ export function CharacterController({
   const getGroundNormal = () => store.groundNormal;
   const getSlopeLimit = () => slopeLimit;
   const getGroundAngle = () => store.groundAngle;
+  const getCharacter = () => store.character;
 
   return (
     <CharacterControllerContext.Provider
@@ -350,6 +368,7 @@ export function CharacterController({
         getIsNearGround,
         getSlopeLimit,
         getGroundAngle,
+        getCharacter,
       }}>
       <group position={capsule.center}>
         <group ref={meshRef}>

@@ -42,6 +42,8 @@ export function PlayerController({
     targetAngle: 0,
     currentAngle: 0,
     forwardVec: new THREE.Vector3(0, 1, 0),
+    position: new THREE.Vector3(),
+    prevPosition: new THREE.Vector3(),
   }));
 
   const character = useCharacterController((state) => state.characters.get(id));
@@ -54,15 +56,20 @@ export function PlayerController({
     if (!character) return;
 
     if (props.position) {
-      if (Array.isArray(props.position)) character.position.set(...props.position);
-      if (props.position instanceof THREE.Vector3) character.position.copy(props.position);
-      if (typeof props.position === 'number') character.position.set(props.position, props.position, props.position);
+      if (Array.isArray(props.position)) store.position.set(...props.position);
+      if (props.position instanceof THREE.Vector3) store.position.copy(props.position);
+      if (typeof props.position === 'number') store.position.set(props.position, props.position, props.position);
+
+      if (store.position.equals(store.prevPosition)) return;
+
+      character.position.copy(store.position);
       character.updateMatrix();
     } else {
       character.position.set(0, 0, 0);
       character.updateMatrix();
     }
-  }, [character, props.position]);
+    store.prevPosition.copy(character.position);
+  }, [character, props.position, store]);
 
   const transform: TransformFn = (character, dt) => {
     store.smoothDamp.smoothTime = rotateTime;
@@ -127,7 +134,6 @@ export function PlayerController({
       capsule={props.capsule}
       slopeLimit={props.slopeLimit}
       groundOffset={props.groundOffset}
-      bigGroundOffset={props.bigGroundOffset}
       nearGround={props.nearGround}
       transform={transform}>
       {children}

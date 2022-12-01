@@ -1,5 +1,6 @@
 import { useUpdate } from '@react-three/fiber';
 import { CharacterControllerContext } from 'character/contexts/character-controller-context';
+import { raycast } from 'collider/scene-queries/raycast';
 import { useContext, useLayoutEffect, useState } from 'react';
 import * as THREE from 'three';
 import { createModifier } from './use-modifiers';
@@ -14,11 +15,11 @@ export type WalkingProps = {
 };
 
 export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = true }: WalkingProps) {
-  const { addModifier, removeModifier, getIsWalking, getGroundNormal, getGroundAngle } =
+  const { addModifier, removeModifier, getIsWalking, getGroundNormal, getGroundAngle, getCharacter, getSlopeLimit } =
     useContext(CharacterControllerContext);
   const modifier = createModifier('walking');
 
-  const [pool] = useState({ vecA: new THREE.Vector3() });
+  const [pool] = useState({ vecA: new THREE.Vector3(), vecB: new THREE.Vector3() });
   const [store] = useState({
     upVec: new THREE.Vector3(0, 1, 0),
     slopeRotation: new THREE.Quaternion(),
@@ -39,21 +40,38 @@ export function Walking({ speed = DEFAULT_WALK_SPEED, movement, adjustToSlope = 
   const adjustVelocityToSlope = (velocity: THREE.Vector3) => {
     const { slopeRotation, upVec, adjustedVelocity } = store;
 
-    const normal = getGroundNormal();
-    const angle = getGroundAngle();
+    const groundNormal = getGroundNormal();
+    const groundAngle = getGroundAngle();
+    const character = getCharacter();
+    const slopeLimit = getSlopeLimit();
 
-    // Try to stick to the ground.
-    if (angle < 5) velocity.y -= 1;
+    const rayHeightFromGround = 0.2;
+    const rayCalculatedHeight = character.position.y - character.boundingCapsule.halfHeight + rayHeightFromGround;
+    const rayOrigin = pool.vecA.set(character.position.x, rayCalculatedHeight, character.position.z);
+    const rayDirection = pool.vecB.copy(velocity).normalize();
 
-    slopeRotation.setFromUnitVectors(upVec, normal);
-    adjustedVelocity.copy(velocity).applyQuaternion(slopeRotation);
+    const footHit = raycast(rayOrigin, rayDirection, 0.75);
 
-    const relativeSlopeAngle = calculateSlope(adjustedVelocity) - 90;
-    const temp = pool.vecA.copy(adjustedVelocity).multiplyScalar(relativeSlopeAngle / 100);
-    adjustedVelocity.add(temp);
+    if (groundAngle < 5) {
+      if (footHit && calculateSlope(footHit.impactNormal) > slopeLimit) {
+        adjustedVelocity.copy(velocity).setY(-5);
+        return adjustedVelocity;
+      }
+    } else {
+      slopeRotation.setFromUnitVectors(upVec, groundNormal);
+      adjustedVelocity.copy(velocity).applyQuaternion(slopeRotation);
 
-    if (angle !== 0 && angle < DEFAULT_MAX_ANGLE) {
-      return adjustedVelocity;
+      const relativeSlopeAngle = calculateSlope(adjustedVelocity) - 90;
+      const temp = pool.vecA.copy(adjustedVelocity).multiplyScalar(relativeSlopeAngle / 100);
+      adjustedVelocity.add(temp);
+
+      if (footHit && calculateSlope(footHit.impactNormal) > slopeLimit) {
+        adjustedVelocity.copy(velocity).setY(-5);
+      }
+
+      if (groundAngle < DEFAULT_MAX_ANGLE) {
+        return adjustedVelocity;
+      }
     }
 
     return velocity;
