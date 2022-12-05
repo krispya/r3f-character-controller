@@ -208,7 +208,6 @@ export function CharacterController({
           if (deltaVector.length() > TOLERANCE && store.groundAngle <= 10) {
             store.character.position.copy(capHit.location);
           }
-          console.log(deltaVector.length(), store.groundAngle, calculateSlope(capHit.impactNormal));
         }
       }
 

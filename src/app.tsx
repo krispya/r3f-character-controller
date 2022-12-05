@@ -7,11 +7,12 @@ import { Terrain } from 'test-assets/terrain';
 import { Collider } from 'collider/collider';
 import Space from 'test-assets/space';
 import { PlayerController } from 'player/player-controller';
-// import { MushroomBoi } from 'test-assets/mushroom-boi';
 import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 import { Wander } from 'test-assets/wander';
 import * as THREE from 'three';
+import { Debug } from 'debug/react/debug';
+import { SphereCastTest } from 'test-assets/sphere-cast-test';
 // import { CastTest } from 'test-assets/cast-test';
 
 const FIXED_STEP = 1 / 60;
@@ -32,8 +33,6 @@ function Game() {
         <TestExtenstionTerrain />
       </Collider>
 
-      {/* <CastTest position={[4.5, -1.5, -11]} radius={0.25} halfHeight={0.55} maxDistance={1} autoUpdate /> */}
-
       <PlayerController
         id="player"
         position={[4, 0, -9]}
@@ -43,10 +42,11 @@ function Game() {
         // slopeLimit={90}
         // gravity={-1}
         debug>
-        {/* <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} /> */}
         <Wander />
       </PlayerController>
       <CameraController />
+
+      <SphereCastTest origin={[4.5, -1.5, -11]} radius={0.25} maxDistance={1} />
 
       <Space />
       <ambientLight intensity={0.5} />
@@ -75,7 +75,9 @@ export default function App() {
   return (
     <Canvas shadows gl={{ physicallyCorrectLights: true }}>
       <StrictMode>
-        <Game />
+        <Debug>
+          <Game />
+        </Debug>
       </StrictMode>
     </Canvas>
   );
