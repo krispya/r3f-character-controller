@@ -1,3 +1,4 @@
+import { DebugMaterialOptions } from 'debug/debug';
 import * as THREE from 'three';
 
 export type RayInfo = {
@@ -9,15 +10,16 @@ export type RayInfo = {
 export class TriangleHelper extends THREE.LineSegments {
   public triangle: THREE.Triangle;
 
-  constructor(triangle: THREE.Triangle) {
+  constructor(triangle: THREE.Triangle, options?: DebugMaterialOptions) {
     const points = [triangle.a, triangle.b, triangle.c];
     const geometry = new THREE.BufferGeometry().setFromPoints(points).setIndex([0, 1, 1, 2, 2, 0]);
     const material = new THREE.LineBasicMaterial({
-      color: 0x0000ff,
+      color: options?.color ?? 0x0000ff,
       toneMapped: false,
-      depthTest: false,
-      opacity: 0.15,
-      transparent: true,
+      depthTest: !options?.alwaysOnTop ?? true,
+      opacity: options?.opacity ?? 1,
+      transparent: options?.opacity && options?.opacity < 1 ? true : false,
+      fog: options?.fog ?? true,
     });
 
     super(geometry, material);
@@ -30,10 +32,15 @@ export class TriangleHelper extends THREE.LineSegments {
     this.triangle = triangle;
   }
 
-  setMaterial(color?: THREE.ColorRepresentation, depthTest?: boolean) {
+  setMaterial(options: DebugMaterialOptions) {
     const material = this.material as THREE.LineBasicMaterial;
-    if (color) material.color.set(color);
-    if (depthTest) material.depthTest = depthTest;
+    if (options.color) material.color.set(options.color);
+    if (options.alwaysOnTop) material.depthTest = !options.alwaysOnTop;
+    if (options.opacity) {
+      material.opacity = options.opacity;
+      material.transparent = options.opacity && options.opacity < 1 ? true : false;
+    }
+    if (options.fog) material.fog = options.fog;
   }
 
   updateMatrixWorld() {

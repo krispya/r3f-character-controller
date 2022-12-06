@@ -1,20 +1,26 @@
 import * as THREE from 'three';
+import { ExtendedBox3Helper } from './helpers/extended-box3-helper';
 import { PointHelper } from './helpers/point-helper';
 import { RayHelper, RayInfo } from './helpers/ray-helper';
 import { TriangleHelper } from './helpers/triangle-helper';
 
+export type DebugMaterialOptions = {
+  color?: THREE.ColorRepresentation;
+  alwaysOnTop?: boolean;
+  opacity?: number;
+  fog?: boolean;
+};
+
 type DebugObjectState = {
   timer: number;
   isActive: boolean;
-  object3D: THREE.Object3D & { dispose?: () => void; set?: (...args: any[]) => void };
+  object3D: THREE.Object3D & { dispose: () => void; set: (...args: any[]) => void };
   persist: boolean;
-  once: boolean;
 };
 
 type DebugObjectOptions = {
   persist?: boolean;
-  once?: boolean;
-};
+} & DebugMaterialOptions;
 
 type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo;
 type Constructor = new (...args: any[]) => any;
@@ -41,7 +47,7 @@ function createDraw<T extends DebugObject>(debug: Debug, constructor?: Construct
       for (const poolObject of debug.poolKeys) {
         if (poolObject.constructor === object.constructor) {
           const state = debug.debugMap.get(poolObject);
-          if (state!.object3D?.set) state!.object3D.set(object);
+          state!.object3D.set(object);
 
           const poolIndex = debug.poolKeys.indexOf(poolObject);
           if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
@@ -53,7 +59,7 @@ function createDraw<T extends DebugObject>(debug: Debug, constructor?: Construct
       }
 
       // If all else fails, we assume it is a new debug call that we have to create helpers for.
-      const object3D = constructor ? new constructor(object) : object;
+      const object3D = constructor ? new constructor(object, options) : object;
       object3D.userData = { isDebug: true };
 
       debug.scene.add(object3D);
@@ -63,7 +69,6 @@ function createDraw<T extends DebugObject>(debug: Debug, constructor?: Construct
         isActive: true,
         object3D: object3D,
         persist: options?.persist ?? false,
-        once: options?.once ?? false,
       });
     };
 
@@ -136,7 +141,7 @@ export class Debug {
       }
 
       if (state.timer <= 0) {
-        if (state.object3D?.dispose) state.object3D.dispose();
+        state.object3D.dispose();
         this._debugMap.delete(debugObject);
         this._debugKeys.splice(index, 1);
 
@@ -151,7 +156,7 @@ export class Debug {
 
   draw = createDraw<THREE.Object3D>(this);
 
-  drawBox3 = createDraw<THREE.Box3>(this, THREE.Box3Helper);
+  drawBox3 = createDraw<THREE.Box3>(this, ExtendedBox3Helper);
   drawRay = createDraw<RayInfo>(this, RayHelper);
   drawPoint = createDraw<THREE.Vector3>(this, PointHelper);
   drawTriangle = createDraw<THREE.Triangle>(this, TriangleHelper);

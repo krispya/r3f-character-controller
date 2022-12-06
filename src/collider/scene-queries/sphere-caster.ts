@@ -157,7 +157,7 @@ export class SphereCaster {
     mesh.geometry.boundsTree?.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(this.aabb),
       intersectsTriangle: (tri) => {
-        DEBUG.drawTriangle(tri.clone());
+        DEBUG.drawTriangle(tri.clone(), { alwaysOnTop: true, opacity: 0.1 });
 
         // Convert to spherical coordinates.
         this.triSpherical.copy(tri);
