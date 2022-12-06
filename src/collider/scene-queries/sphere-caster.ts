@@ -104,6 +104,7 @@ export class SphereCaster {
   private nearestDistance: number;
 
   private rayInfo: RayInfo;
+  private pointInfo: THREE.Vector3;
 
   constructor(radius?: number, origin?: THREE.Vector3, direction?: THREE.Vector3, distance?: number) {
     this.radius = radius ?? 1;
@@ -126,6 +127,7 @@ export class SphereCaster {
     this.nearestDistance = 0;
 
     this.rayInfo = { origin: this.origin, direction: this.direction, distance: this.distance };
+    this.pointInfo = new THREE.Vector3();
 
     this.update();
   }
@@ -199,7 +201,7 @@ export class SphereCaster {
             t0 = (-1 - signedDistanceToTrianglePlane) / normalDotVelocity;
             t1 = (1 - signedDistanceToTrianglePlane) / normalDotVelocity;
 
-            console.log(t0, t1);
+            // console.log(t0, t1);
 
             // Swap so t0 < t1.
             if (t0 > t1) {
@@ -235,14 +237,14 @@ export class SphereCaster {
               .subVectors(this.originSpherical, this.triPlane.normal)
               .addScaledVector(this.velocitySpherical, t0);
 
-            console.log('not embedded');
+            // console.log('not embedded');
 
             if (this.triSpherical.containsPoint(planeIntersectionPoint)) {
               foundCollision = true;
               this.t = t0;
               this.impactPoint.copy(planeIntersectionPoint);
 
-              console.log('inside triangle');
+              // console.log('inside triangle');
 
               // Collisions against the face will always be closer than vertex or edge collisions
               // so we can stop checking now.
@@ -332,6 +334,7 @@ export class SphereCaster {
       },
     });
 
+    DEBUG.drawPoint(this.pointInfo.set(4, 0, -9));
     // console.log(this.impactPoint, this.nearestDistance);
   }
 }

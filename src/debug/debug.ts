@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PointHelper } from './helpers/point-helper';
 import { RayHelper, RayInfo } from './helpers/ray-helper';
 
 type DebugObjectState = {
@@ -12,7 +13,7 @@ type DebugObjectOptions = {
   persist?: boolean;
 };
 
-type DebugObject = THREE.Object3D | THREE.Box3 | RayInfo;
+type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | RayInfo;
 type Constructor = new (...args: any[]) => any;
 
 const DISPOSE_TIMER_DEFAULT = 100;
@@ -93,8 +94,11 @@ export class Debug {
   draw = createDraw<THREE.Object3D>(this);
 
   drawBox3 = createDraw<THREE.Box3>(this, THREE.Box3Helper);
-
   drawRay = createDraw<RayInfo>(this, RayHelper);
+  drawPoint = createDraw<THREE.Vector3>(this, PointHelper);
 
   drawSpotlight = createDraw<THREE.SpotLight>(this, THREE.SpotLightHelper);
+  drawPointlight = createDraw<THREE.PointLight>(this, THREE.PointLightHelper);
+  drawDirectionalLight = createDraw<THREE.DirectionalLight>(this, THREE.DirectionalLightHelper);
+  drawHemisphereLight = createDraw<THREE.HemisphereLight>(this, THREE.HemisphereLightHelper);
 }
