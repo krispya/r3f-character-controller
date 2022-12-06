@@ -8,27 +8,26 @@ export type RayInfo = {
 
 export class RayHelper extends THREE.Line {
   public rayInfo: RayInfo;
+  private end: THREE.Vector3;
 
   constructor(rayInfo: RayInfo) {
-    const points = [];
-    points.push(new THREE.Vector3().copy(rayInfo.origin));
-    points.push(new THREE.Vector3().copy(rayInfo.origin).addScaledVector(rayInfo.direction, rayInfo.distance));
-
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const end = new THREE.Vector3().copy(rayInfo.origin).addScaledVector(rayInfo.direction, rayInfo.distance);
+    const geometry = new THREE.BufferGeometry().setFromPoints([rayInfo.origin, end]);
 
     super(geometry, new THREE.LineBasicMaterial({ color: 0x0000ff, toneMapped: false }));
 
     this.type = 'RayHelper';
     this.rayInfo = rayInfo;
+    this.end = end;
+  }
+
+  set(rayInfo: RayInfo) {
+    this.rayInfo = rayInfo;
   }
 
   updateMatrixWorld() {
-    const points = [];
-    points.push(new THREE.Vector3().copy(this.rayInfo.origin));
-    points.push(
-      new THREE.Vector3().copy(this.rayInfo.origin).addScaledVector(this.rayInfo.direction, this.rayInfo.distance),
-    );
-    this.geometry.setFromPoints(points);
+    this.end.copy(this.rayInfo.origin).addScaledVector(this.rayInfo.direction, this.rayInfo.distance);
+    this.geometry.setFromPoints([this.rayInfo.origin, this.end]);
   }
 
   dispose() {

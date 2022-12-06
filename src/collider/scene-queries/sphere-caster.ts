@@ -1,4 +1,3 @@
-import { RayInfo } from 'debug/helpers/ray-helper';
 import { getDebug } from 'debug/react/debug';
 import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
@@ -103,9 +102,6 @@ export class SphereCaster {
   private triPlane: THREE.Plane;
   private nearestDistance: number;
 
-  private rayInfo: RayInfo;
-  private pointInfo: THREE.Vector3;
-
   constructor(radius?: number, origin?: THREE.Vector3, direction?: THREE.Vector3, distance?: number) {
     this.radius = radius ?? 1;
     this.origin = origin ?? new THREE.Vector3();
@@ -126,9 +122,6 @@ export class SphereCaster {
     this.triPlane = new THREE.Plane();
     this.nearestDistance = 0;
 
-    this.rayInfo = { origin: this.origin, direction: this.direction, distance: this.distance };
-    this.pointInfo = new THREE.Vector3();
-
     this.update();
   }
 
@@ -142,8 +135,6 @@ export class SphereCaster {
     this.aabb = this.aabb.setFromPoints([this.origin, this.end]);
     this.aabb.min.addScalar(-this.radius);
     this.aabb.max.addScalar(this.radius);
-
-    this.rayInfo.distance = this.distance;
 
     this.needsUpdate = false;
   }
@@ -161,11 +152,13 @@ export class SphereCaster {
     if (this.needsUpdate) this.update();
 
     DEBUG.drawBox3(this.aabb);
-    DEBUG.drawRay(this.rayInfo);
+    DEBUG.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
 
     mesh.geometry.boundsTree?.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(this.aabb),
       intersectsTriangle: (tri) => {
+        DEBUG.drawTriangle(tri.clone());
+
         // Convert to spherical coordinates.
         this.triSpherical.copy(tri);
         this.triSpherical.a.divideScalar(this.radius);
@@ -334,7 +327,7 @@ export class SphereCaster {
       },
     });
 
-    DEBUG.drawPoint(this.pointInfo.set(4, 0, -9));
+    DEBUG.drawPoint(this.impactPoint);
     // console.log(this.impactPoint, this.nearestDistance);
   }
 }
