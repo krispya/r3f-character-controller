@@ -101,6 +101,7 @@ export class SphereCaster {
   private triSpherical: ExtendedTriangle;
   private triPlane: THREE.Plane;
   private nearestDistance: number;
+  private location: THREE.Vector3;
 
   constructor(radius?: number, origin?: THREE.Vector3, direction?: THREE.Vector3, distance?: number) {
     this.radius = radius ?? 1;
@@ -121,6 +122,7 @@ export class SphereCaster {
     this.triSpherical = new ExtendedTriangle();
     this.triPlane = new THREE.Plane();
     this.nearestDistance = 0;
+    this.location = new THREE.Vector3();
 
     this.update();
   }
@@ -157,8 +159,6 @@ export class SphereCaster {
     mesh.geometry.boundsTree?.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(this.aabb),
       intersectsTriangle: (tri) => {
-        DEBUG.drawTriangle(tri.clone(), { alwaysOnTop: true, opacity: 0.1 });
-
         // Convert to spherical coordinates.
         this.triSpherical.copy(tri);
         this.triSpherical.a.divideScalar(this.radius);
@@ -171,7 +171,6 @@ export class SphereCaster {
         if (tri.isFrontFacing(this.direction)) {
           let t0, t1;
           let isEmbeddedInPlane = false;
-          let foundCollision = false;
 
           const signedDistanceToTrianglePlane = this.triPlane.distanceToPoint(this.originSpherical);
           const normalDotVelocity = this.triPlane.normal.dot(this.velocitySpherical);
@@ -190,25 +189,25 @@ export class SphereCaster {
             t0 = 0;
             t1 = 1;
           } else {
-            // Compute intersection interval of ray with triangle plane.
-            t0 = (-1 - signedDistanceToTrianglePlane) / normalDotVelocity;
-            t1 = (1 - signedDistanceToTrianglePlane) / normalDotVelocity;
-
-            // console.log(t0, t1);
+            // t0 is when the sphere rests on the front side of the plane.
+            // t1 is when the sphere rests on the back side of the plane.
+            // Together they make the interval of intersection.
+            t0 = (1 - signedDistanceToTrianglePlane) / normalDotVelocity;
+            t1 = (-1 - signedDistanceToTrianglePlane) / normalDotVelocity;
 
             // Swap so t0 < t1.
-            if (t0 > t1) {
-              const tmp = t0;
-              t0 = t1;
-              t1 = tmp;
-            }
+            // if (t0 > t1) {
+            //   console.log('swap');
+            //   const tmp = t0;
+            //   t0 = t1;
+            //   t1 = tmp;
+            // }
 
-            // Exit with no collision as soon as interval is empty.
             if (t0 > 1 || t1 < 0) {
               return false;
             }
 
-            // Clamp to [0,1].
+            // Clamp so our interval of intersection is [0, 1] now that it is verified.
             if (t0 < 0) t0 = 0;
             if (t1 < 0) t1 = 0;
             if (t0 > 1) t0 = 1;
@@ -220,9 +219,9 @@ export class SphereCaster {
           // in testing further.
           // if (t0 >= this.t) return;
 
-          // t0 and t1 now represent the range of the sphere movement
-          // during which it intersects with the triangle plane.
-          // Collisions cannot happen outside that range.
+          let foundCollision = false;
+          const impactPoint = new THREE.Vector3();
+          let t = 1;
 
           if (!isEmbeddedInPlane) {
             // Check if the sphere intersection with the plane is inside the triangle.
@@ -230,14 +229,14 @@ export class SphereCaster {
               .subVectors(this.originSpherical, this.triPlane.normal)
               .addScaledVector(this.velocitySpherical, t0);
 
-            // console.log('not embedded');
+            DEBUG.drawTriangle(tri.clone(), { color: 'blue', alwaysOnTop: true, opacity: 0.25 });
 
             if (this.triSpherical.containsPoint(planeIntersectionPoint)) {
-              foundCollision = true;
-              this.t = t0;
-              this.impactPoint.copy(planeIntersectionPoint);
+              DEBUG.drawTriangle(tri.clone(), { color: 'red', alwaysOnTop: true, opacity: 0.75 });
 
-              // console.log('inside triangle');
+              foundCollision = true;
+              t = t0;
+              impactPoint.copy(planeIntersectionPoint);
 
               // Collisions against the face will always be closer than vertex or edge collisions
               // so we can stop checking now.
@@ -312,15 +311,19 @@ export class SphereCaster {
               this.t = newT;
               this.impactPoint.copy(impactPoint);
             }
+          }
 
-            if (foundCollision) {
-              const distToCollision = this.velocitySpherical.length() * this.t;
+          if (foundCollision) {
+            const distToCollision = this.velocitySpherical.length() * this.t;
 
-              if (this.isCollided === false || distToCollision < this.nearestDistance) {
-                this.nearestDistance = distToCollision;
-                this.isCollided = true;
-                tri.getNormal(this.impactNormal);
-              }
+            if (this.isCollided === false || distToCollision < this.nearestDistance) {
+              this.nearestDistance = distToCollision;
+              this.isCollided = true;
+              this.impactPoint.copy(impactPoint).multiplyScalar(this.radius);
+              this.t = t;
+              this.location.copy(this.origin).addScaledVector(this.velocity, this.t);
+
+              console.log('collided');
             }
           }
         }
@@ -328,6 +331,7 @@ export class SphereCaster {
     });
 
     DEBUG.drawPoint(this.impactPoint);
-    // console.log(this.impactPoint, this.nearestDistance);
+    DEBUG.drawPoint(this.location, { color: 'magenta' });
+    DEBUG.drawSphere({ center: this.location, radius: this.radius }, { color: 'magenta', opacity: 0.5 });
   }
 }

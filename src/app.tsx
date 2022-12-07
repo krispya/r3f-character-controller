@@ -46,7 +46,7 @@ function Game() {
       </PlayerController>
       <CameraController />
 
-      <SphereCastTest origin={[4.5, -1.5, -11]} radius={0.25} maxDistance={1} />
+      <SphereCastTest origin={[4.5, -1.5, -10.7]} radius={0.25} maxDistance={1.4} />
 
       <Space />
       <ambientLight intensity={0.5} />

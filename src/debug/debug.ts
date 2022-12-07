@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ExtendedBox3Helper } from './helpers/extended-box3-helper';
 import { PointHelper } from './helpers/point-helper';
 import { RayHelper, RayInfo } from './helpers/ray-helper';
+import { SphereInterface, SphereHelper } from './helpers/sphere-helper';
 import { TriangleHelper } from './helpers/triangle-helper';
 
 export type DebugMaterialOptions = {
@@ -14,7 +15,11 @@ export type DebugMaterialOptions = {
 type DebugObjectState = {
   timer: number;
   isActive: boolean;
-  object3D: THREE.Object3D & { dispose: () => void; set: (...args: any[]) => void };
+  object3D: THREE.Object3D & {
+    dispose: () => void;
+    set: (...args: any[]) => void;
+    setMaterial: (options: DebugMaterialOptions) => void;
+  };
   persist: boolean;
 };
 
@@ -22,7 +27,7 @@ type DebugObjectOptions = {
   persist?: boolean;
 } & DebugMaterialOptions;
 
-type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo;
+type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo | SphereInterface;
 type Constructor = new (...args: any[]) => any;
 
 const DISPOSE_TIMER_DEFAULT = 100;
@@ -53,6 +58,7 @@ function createDraw<T extends DebugObject>(debug: Debug, constructor?: Construct
           if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
 
           state!.isActive = true;
+          if (options) state!.object3D.setMaterial(options);
 
           return;
         }
@@ -160,6 +166,7 @@ export class Debug {
   drawRay = createDraw<RayInfo>(this, RayHelper);
   drawPoint = createDraw<THREE.Vector3>(this, PointHelper);
   drawTriangle = createDraw<THREE.Triangle>(this, TriangleHelper);
+  drawSphere = createDraw<SphereInterface>(this, SphereHelper);
 
   drawSpotlight = createDraw<THREE.SpotLight>(this, THREE.SpotLightHelper);
   drawPointlight = createDraw<THREE.PointLight>(this, THREE.PointLightHelper);
