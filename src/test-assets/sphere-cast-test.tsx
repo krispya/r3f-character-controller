@@ -26,14 +26,21 @@ export function SphereCastTest({
   const collider = useCollider((state) => state.collider);
 
   useEffect(() => {
+    store.origin.set(...origin);
     sphereCaster.origin = store.origin;
     sphereCaster.needsUpdate = true;
   }, [origin, store, sphereCaster]);
 
   useEffect(() => {
+    store.direction.set(...direction);
     sphereCaster.direction = store.direction;
     sphereCaster.needsUpdate = true;
   }, [direction, store, sphereCaster]);
+
+  useEffect(() => {
+    sphereCaster.distance = maxDistance;
+    sphereCaster.needsUpdate = true;
+  }, [maxDistance, store, sphereCaster]);
 
   useUpdate(() => {
     if (collider) sphereCaster.intersectMesh(collider);

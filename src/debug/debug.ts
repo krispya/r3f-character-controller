@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { ExtendedBox3Helper } from './helpers/extended-box3-helper';
 import { PointHelper } from './helpers/point-helper';
 import { RayHelper, RayInfo } from './helpers/ray-helper';
-import { SphereInterface, SphereHelper } from './helpers/sphere-helper';
-import { TriangleHelper } from './helpers/triangle-helper';
+import { SphereInterface, SphereHelper, WireSphereHelper } from './helpers/sphere-helper';
+import { TriangleHelper, WireTriangleHelper } from './helpers/triangle-helper';
 
 export type DebugMaterialOptions = {
   color?: THREE.ColorRepresentation;
@@ -165,7 +165,9 @@ export class Debug {
   drawBox3 = createDraw<THREE.Box3>(this, ExtendedBox3Helper);
   drawRay = createDraw<RayInfo>(this, RayHelper);
   drawPoint = createDraw<THREE.Vector3>(this, PointHelper);
+  drawWireTriangle = createDraw<THREE.Triangle>(this, WireTriangleHelper);
   drawTriangle = createDraw<THREE.Triangle>(this, TriangleHelper);
+  drawWireSphere = createDraw<SphereInterface>(this, WireSphereHelper);
   drawSphere = createDraw<SphereInterface>(this, SphereHelper);
 
   drawSpotlight = createDraw<THREE.SpotLight>(this, THREE.SpotLightHelper);

@@ -44,7 +44,7 @@ function testVertex(
   const vecA = pool.vecA.subVectors(vertex, origin);
   const a = velocityLengthSqr;
   const b = 2 * vecA.dot(velocity);
-  const c = vecA.dot(vecA) - t * t;
+  const c = vecA.lengthSq() - 1;
 
   return getLowestRoot(a, b, c, t);
 }
@@ -229,10 +229,8 @@ export class SphereCaster {
               .subVectors(this.originSpherical, this.triPlane.normal)
               .addScaledVector(this.velocitySpherical, t0);
 
-            DEBUG.drawTriangle(tri.clone(), { color: 'blue', alwaysOnTop: true, opacity: 0.25 });
-
             if (this.triSpherical.containsPoint(planeIntersectionPoint)) {
-              DEBUG.drawTriangle(tri.clone(), { color: 'red', alwaysOnTop: true, opacity: 0.75 });
+              DEBUG.drawTriangle(tri.clone(), { color: 'red', opacity: 0.15 });
 
               foundCollision = true;
               t = t0;
@@ -331,7 +329,7 @@ export class SphereCaster {
     });
 
     DEBUG.drawPoint(this.impactPoint);
-    DEBUG.drawPoint(this.location, { color: 'magenta' });
-    DEBUG.drawSphere({ center: this.location, radius: this.radius }, { color: 'magenta', opacity: 0.5 });
+    DEBUG.drawPoint(this.location, { color: 'blue' });
+    DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
   }
 }
