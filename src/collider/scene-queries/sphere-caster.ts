@@ -230,7 +230,7 @@ export class SphereCaster {
               .addScaledVector(this.velocitySpherical, t0);
 
             if (this.triSpherical.containsPoint(planeIntersectionPoint)) {
-              DEBUG.drawTriangle(tri.clone(), { color: 'red', opacity: 0.15 });
+              DEBUG.drawTriangle(tri.clone(), { color: 'red', opacity: 0.15, winZFight: true });
 
               foundCollision = true;
               t = t0;

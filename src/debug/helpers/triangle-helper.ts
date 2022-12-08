@@ -1,11 +1,31 @@
 import { DebugMaterialOptions } from 'debug/debug';
 import * as THREE from 'three';
 
+export type TriangleDebugOptions = { winZFight: boolean } & DebugMaterialOptions;
+
 export class TriangleHelper extends THREE.Mesh {
   public triangle: THREE.Triangle;
+  public winZFight: boolean;
 
-  constructor(triangle: THREE.Triangle, options?: DebugMaterialOptions) {
-    const points = [triangle.a, triangle.b, triangle.c];
+  private a: THREE.Vector3;
+  private b: THREE.Vector3;
+  private c: THREE.Vector3;
+  private normal: THREE.Vector3;
+
+  constructor(triangle: THREE.Triangle, options?: TriangleDebugOptions) {
+    const a = new THREE.Vector3().copy(triangle.a);
+    const b = new THREE.Vector3().copy(triangle.b);
+    const c = new THREE.Vector3().copy(triangle.c);
+    const normal = new THREE.Vector3();
+    triangle.getNormal(normal);
+
+    if (options?.winZFight) {
+      a.addScaledVector(normal, 0.001);
+      b.addScaledVector(normal, 0.001);
+      c.addScaledVector(normal, 0.001);
+    }
+
+    const points = [a, b, c];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.MeshBasicMaterial({
       color: options?.color ?? 0x0000ff,
@@ -19,7 +39,13 @@ export class TriangleHelper extends THREE.Mesh {
     super(geometry, material);
 
     this.type = 'TriangleHelper';
+
     this.triangle = triangle;
+    this.a = a;
+    this.b = b;
+    this.c = c;
+    this.normal = normal;
+    this.winZFight = options?.winZFight ?? false;
   }
 
   set(triangle: THREE.Triangle) {
@@ -38,7 +64,7 @@ export class TriangleHelper extends THREE.Mesh {
   }
 
   updateMatrixWorld() {
-    const points = [this.triangle.a, this.triangle.b, this.triangle.c];
+    const points = [this.a, this.b, this.c];
     this.geometry.setFromPoints(points);
   }
 

@@ -3,7 +3,7 @@ import { ExtendedBox3Helper } from './helpers/extended-box3-helper';
 import { PointHelper } from './helpers/point-helper';
 import { RayHelper, RayInfo } from './helpers/ray-helper';
 import { SphereInterface, SphereHelper, WireSphereHelper } from './helpers/sphere-helper';
-import { TriangleHelper, WireTriangleHelper } from './helpers/triangle-helper';
+import { TriangleDebugOptions, TriangleHelper, WireTriangleHelper } from './helpers/triangle-helper';
 
 export type DebugMaterialOptions = {
   color?: THREE.ColorRepresentation;
@@ -23,17 +23,25 @@ type DebugObjectState = {
   persist: boolean;
 };
 
-type DebugObjectOptions = {
+type DebugDrawOptions = {
   persist?: boolean;
 } & DebugMaterialOptions;
+
+type TriangleDrawOptions = TriangleDebugOptions & {
+  persist?: boolean;
+};
 
 type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo | SphereInterface;
 type Constructor = new (...args: any[]) => any;
 
 const DISPOSE_TIMER_DEFAULT = 100;
+const GROUP_NAME = '__debug';
 
-function createDraw<T extends DebugObject>(debug: Debug, constructor?: Constructor) {
-  return (object: T, options?: DebugObjectOptions) => {
+function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDrawOptions>(
+  debug: Debug,
+  constructor?: Constructor,
+) {
+  return (object: T, options?: K) => {
     // Check if we are calling with the same object. If so, keep it active and update.
     if (debug.debugMap.has(object)) {
       const state = debug.debugMap.get(object);
@@ -68,7 +76,7 @@ function createDraw<T extends DebugObject>(debug: Debug, constructor?: Construct
       const object3D = constructor ? new constructor(object, options) : object;
       object3D.userData = { isDebug: true };
 
-      debug.scene.add(object3D);
+      debug.group.add(object3D);
       debug.debugKeys.push(object);
       debug.debugMap.set(object, {
         timer: debug.disposeTimer,
@@ -88,17 +96,22 @@ export class Debug {
   private _debugMap: WeakMap<DebugObject, DebugObjectState>;
   private _poolKeys: DebugObject[];
   private _deferred: (() => void)[];
+  private _group: THREE.Group;
+  private _scene: THREE.Scene;
 
-  public scene: THREE.Scene;
   public disposeTimer: number;
 
   constructor(scene: THREE.Scene, disposeTimer?: number) {
-    this.scene = scene;
+    this._scene = scene;
     this._debugKeys = [];
     this._debugMap = new WeakMap();
     this._poolKeys = [];
     this._deferred = [];
     this.disposeTimer = disposeTimer ?? DISPOSE_TIMER_DEFAULT;
+
+    this._group = new THREE.Group();
+    this._group.name = GROUP_NAME;
+    scene.add(this._group);
   }
 
   get debugKeys() {
@@ -117,6 +130,25 @@ export class Debug {
     return this._deferred;
   }
 
+  get group() {
+    return this._group;
+  }
+
+  get scene() {
+    return this._scene;
+  }
+
+  set scene(scene: THREE.Scene) {
+    this._scene = scene;
+
+    // If our debug group doesn't exist on the new scene, create it.
+    if (!scene.getObjectByName(GROUP_NAME)) {
+      this._group = new THREE.Group();
+      this._group.name = GROUP_NAME;
+      scene.add(this._group);
+    }
+  }
+
   update(dt: number) {
     // In order to know which debug objects can be pooled, we need to wait to see which get
     // referred again in a draw call. Any draw call with a new reference was deferred to now
@@ -126,6 +158,9 @@ export class Debug {
     });
 
     this._deferred.length = 0;
+
+    console.log('keys: ', this._debugKeys);
+    console.log(this.scene);
 
     this._debugKeys.forEach((debugObject, index) => {
       const state = this._debugMap.get(debugObject);
@@ -142,7 +177,7 @@ export class Debug {
       }
 
       if (state.isActive && state.timer < this.disposeTimer) {
-        this.scene.add(state.object3D);
+        this.group.add(state.object3D);
         state.timer = this.disposeTimer;
       }
 
@@ -166,7 +201,7 @@ export class Debug {
   drawRay = createDraw<RayInfo>(this, RayHelper);
   drawPoint = createDraw<THREE.Vector3>(this, PointHelper);
   drawWireTriangle = createDraw<THREE.Triangle>(this, WireTriangleHelper);
-  drawTriangle = createDraw<THREE.Triangle>(this, TriangleHelper);
+  drawTriangle = createDraw<THREE.Triangle, TriangleDrawOptions>(this, TriangleHelper);
   drawWireSphere = createDraw<SphereInterface>(this, WireSphereHelper);
   drawSphere = createDraw<SphereInterface>(this, SphereHelper);
 
