@@ -50,6 +50,15 @@ export class TriangleHelper extends THREE.Mesh {
 
   set(triangle: THREE.Triangle) {
     this.triangle = triangle;
+    this.a.copy(triangle.a);
+    this.b.copy(triangle.b);
+    this.c.copy(triangle.c);
+
+    if (this.winZFight) {
+      this.a.addScaledVector(this.normal, 0.001);
+      this.b.addScaledVector(this.normal, 0.001);
+      this.c.addScaledVector(this.normal, 0.001);
+    }
   }
 
   setMaterial(options: DebugMaterialOptions) {

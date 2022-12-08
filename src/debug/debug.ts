@@ -171,6 +171,10 @@ export class Debug {
       fn();
     });
 
+    // console.log('pool: ', this._poolKeys);
+    // console.log('debug after: ', this.debugMap);
+    // console.log('helper after: ', this.helperMap);
+
     this._deferred.length = 0;
 
     this._debugKeys.forEach((helper, index) => {
