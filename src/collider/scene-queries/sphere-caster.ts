@@ -152,6 +152,9 @@ export class SphereCaster {
 
   intersectMesh(mesh: THREE.Mesh) {
     if (this.needsUpdate) this.update();
+    this.isCollided = false;
+    this.t = 1;
+    this.impactPoint.set(0, 0, 0);
 
     DEBUG.drawBox3(this.aabb);
     DEBUG.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
@@ -245,69 +248,69 @@ export class SphereCaster {
           if (foundCollision === false) {
             const velocityLengthSqr = this.velocitySpherical.lengthSq();
             let newT = 0 as number | null;
-            let impactPoint: THREE.Vector3;
+            let edgePoint;
 
-            newT = testVertex(this.triSpherical.a, velocityLengthSqr, this.t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.a, velocityLengthSqr, t, this.originSpherical, this.velocity);
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(this.triSpherical.a);
+              t = newT;
+              impactPoint.copy(this.triSpherical.a);
             }
 
-            newT = testVertex(this.triSpherical.b, velocityLengthSqr, this.t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.b, velocityLengthSqr, t, this.originSpherical, this.velocity);
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(this.triSpherical.b);
+              t = newT;
+              impactPoint.copy(this.triSpherical.b);
             }
 
-            newT = testVertex(this.triSpherical.c, velocityLengthSqr, this.t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.c, velocityLengthSqr, t, this.originSpherical, this.velocity);
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(this.triSpherical.c);
+              t = newT;
+              impactPoint.copy(this.triSpherical.c);
             }
 
-            [newT, impactPoint] = testEdge(
+            [newT, edgePoint] = testEdge(
               this.triSpherical.a,
               this.triSpherical.b,
               velocityLengthSqr,
-              this.t,
+              t,
               this.originSpherical,
               this.velocity,
             );
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(impactPoint);
+              t = newT;
+              impactPoint.copy(edgePoint);
             }
 
-            [newT, impactPoint] = testEdge(
+            [newT, edgePoint] = testEdge(
               this.triSpherical.b,
               this.triSpherical.c,
               velocityLengthSqr,
-              this.t,
+              t,
               this.originSpherical,
               this.velocity,
             );
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(impactPoint);
+              t = newT;
+              impactPoint.copy(edgePoint);
             }
 
-            [newT, impactPoint] = testEdge(
+            [newT, edgePoint] = testEdge(
               this.triSpherical.c,
               this.triSpherical.a,
               velocityLengthSqr,
-              this.t,
+              t,
               this.originSpherical,
               this.velocity,
             );
             if (newT !== null) {
               foundCollision = true;
-              this.t = newT;
-              this.impactPoint.copy(impactPoint);
+              t = newT;
+              impactPoint.copy(edgePoint);
             }
           }
 
@@ -320,16 +323,18 @@ export class SphereCaster {
               this.impactPoint.copy(impactPoint).multiplyScalar(this.radius);
               this.t = t;
               this.location.copy(this.origin).addScaledVector(this.velocity, this.t);
-
-              console.log('collided');
             }
           }
         }
       },
     });
 
-    DEBUG.drawPoint(this.impactPoint);
-    DEBUG.drawPoint(this.location, { color: 'blue' });
-    DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
+    if (this.isCollided) {
+      DEBUG.drawPoint(this.impactPoint);
+      DEBUG.drawPoint(this.location, { color: 'blue' });
+      DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
+    }
+
+    // console.log(this.distance, this.nearestDistance);
   }
 }

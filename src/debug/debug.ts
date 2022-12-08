@@ -37,6 +37,11 @@ type Constructor = new (...args: any[]) => any;
 const DISPOSE_TIMER_DEFAULT = 100;
 const GROUP_NAME = '__debug';
 
+function removeObjectFromPool(debug: Debug, object: DebugObject) {
+  const poolIndex = debug.poolKeys.indexOf(object);
+  if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
+}
+
 function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDrawOptions>(
   debug: Debug,
   constructor?: Constructor,
@@ -47,9 +52,7 @@ function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDra
       const state = debug.debugMap.get(object);
 
       state!.isActive = true;
-
-      const poolIndex = debug.poolKeys.indexOf(object);
-      if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
+      removeObjectFromPool(debug, object);
 
       return;
     }
@@ -57,19 +60,24 @@ function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDra
     const poolOrCreate = () => {
       // Check the pool of inactive helpers and see if we can take over one of them
       // instead of instantiating a new one and wasting all those resources.
+      console.log('pool: ', debug.poolKeys);
+      console.log('map: ', debug.debugMap);
       for (const poolObject of debug.poolKeys) {
-        if (poolObject.constructor === object.constructor) {
-          const state = debug.debugMap.get(poolObject);
+        const state = debug.debugMap.get(poolObject);
+
+        if (state && state.object3D instanceof (constructor as unknown as () => void)) {
           state!.object3D.set(object);
 
-          const poolIndex = debug.poolKeys.indexOf(poolObject);
-          if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
+          removeObjectFromPool(debug, poolObject);
 
           state!.isActive = true;
           if (options) state!.object3D.setMaterial(options);
 
           return;
         }
+
+        // Clean up any orphaned pool objects.
+        if (!state) removeObjectFromPool(debug, poolObject);
       }
 
       // If all else fails, we assume it is a new debug call that we have to create helpers for.
@@ -159,8 +167,9 @@ export class Debug {
 
     this._deferred.length = 0;
 
-    console.log('keys: ', this._debugKeys);
-    console.log(this.scene);
+    // console.log('keys: ', this._debugKeys);
+    // console.log(this.scene.getObjectByName(GROUP_NAME)?.children);
+    console.log('map after: ', this.debugMap);
 
     this._debugKeys.forEach((debugObject, index) => {
       const state = this._debugMap.get(debugObject);
@@ -173,7 +182,7 @@ export class Debug {
         if (state.timer === this.disposeTimer) this._poolKeys.push(debugObject);
 
         state.timer -= dt * 1000;
-        this.scene.remove(state.object3D);
+        this.group.remove(state.object3D);
       }
 
       if (state.isActive && state.timer < this.disposeTimer) {
@@ -186,12 +195,12 @@ export class Debug {
         this._debugMap.delete(debugObject);
         this._debugKeys.splice(index, 1);
 
-        const poolIndex = this._poolKeys.indexOf(debugObject);
-        if (poolIndex !== -1) this._poolKeys.splice(poolIndex, 1);
+        removeObjectFromPool(this, debugObject);
+
+        return;
       }
 
       state.isActive = false;
-      this._poolKeys.push(debugObject);
     });
   }
 

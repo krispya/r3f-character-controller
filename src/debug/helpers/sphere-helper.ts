@@ -24,6 +24,7 @@ export class SphereHelper extends THREE.Mesh {
 
     super(geometry, material);
 
+    this.type = 'SphereHelper';
     this.sphere = sphere;
     this.position.copy(sphere.center);
   }
@@ -78,6 +79,7 @@ export class WireSphereHelper extends THREE.Line {
 
     super(merged, material);
 
+    this.type = 'WireSphereHelper';
     this.sphere = sphere;
     this.position.copy(sphere.center);
   }
@@ -91,6 +93,7 @@ export class WireSphereHelper extends THREE.Line {
     const merged = BufferGeometryUtils.mergeBufferGeometries([geometryA, geometryC, geometryB]);
 
     this.geometry.copy(merged);
+    this.sphere = sphere;
   }
 
   setMaterial(options: DebugMaterialOptions) {
