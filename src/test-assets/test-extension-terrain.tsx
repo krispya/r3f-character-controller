@@ -39,57 +39,69 @@ export function TestExtenstionTerrain() {
   // }, Stages.Fixed);
 
   return (
-    <group position={[2, -2.8, -5.5]} rotation={[0, -0.15, 0]}>
-      {/* @ts-ignore */}
-      <Box name="Floor Platform" ref={platformARef} args={[4, 0.5, 4]} receiveShadow castShadow>
-        <meshStandardMaterial color="white" />
-      </Box>
-      {/* @ts-ignore */}
+    <>
+      <group position={[2, -2.8, -5.5]} rotation={[0, -0.15, 0]}>
+        {/* @ts-ignore */}
+        <Box name="Floor Platform" ref={platformARef} args={[4, 0.5, 4]} receiveShadow castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+        {/* @ts-ignore */}
+        <Box
+          name="Elevator Platform"
+          ref={platformBRef}
+          args={[1.5, 0.25, 1]}
+          position={[4, 0.5, -7.2]}
+          receiveShadow
+          castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+        {/* @ts-ignore */}
+        <Box name="Floor" args={[12, 0.25, 6]} position={[0, 0, -5]} receiveShadow castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+        {/* @ts-ignore */}
+        <Box
+          name="Wall"
+          args={[8, 0.5, 12]}
+          position={[0, -0.1, -8]}
+          rotation={[0, Math.PI / 2, Math.PI / 2]}
+          receiveShadow
+          castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+        {/* @ts-ignore */}
+        <Box
+          name="Steep Ramp"
+          args={[5, 0.25, 1.8]}
+          position={[1, 1, -6.4]}
+          rotation={[0, Math.PI / 2, 0.9]}
+          receiveShadow
+          castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+        {/* @ts-ignore */}
+        <Box
+          name="Ramp"
+          args={[4, 0.25, 1.8]}
+          position={[-1, 1, -6.4]}
+          rotation={[0, Math.PI / 2, 0.6]}
+          receiveShadow
+          castShadow>
+          <meshStandardMaterial color="white" />
+        </Box>
+
+        <Steps position={[-3, 0, -7.25]} stepHeight={0.2} />
+        <Steps position={[-4, -0.05, -7.25]} stepHeight={0.3} />
+      </group>
       <Box
-        name="Elevator Platform"
-        ref={platformBRef}
-        args={[1.5, 0.25, 1]}
-        position={[4, 0.5, -7.2]}
-        receiveShadow
-        castShadow>
-        <meshStandardMaterial color="white" />
-      </Box>
-      {/* @ts-ignore */}
-      <Box name="Floor" args={[12, 0.25, 6]} position={[0, 0, -5]} receiveShadow castShadow>
-        <meshStandardMaterial color="white" />
-      </Box>
-      {/* @ts-ignore */}
-      <Box
-        name="Wall"
-        args={[8, 0.5, 12]}
-        position={[0, -0.1, -8]}
-        rotation={[0, Math.PI / 2, Math.PI / 2]}
-        receiveShadow
-        castShadow>
-        <meshStandardMaterial color="white" />
-      </Box>
-      {/* @ts-ignore */}
-      <Box
-        name="Steep Ramp"
-        args={[5, 0.25, 1.8]}
-        position={[1, 1, -6.4]}
-        rotation={[0, Math.PI / 2, 0.9]}
-        receiveShadow
-        castShadow>
-        <meshStandardMaterial color="white" />
-      </Box>
-      {/* @ts-ignore */}
-      <Box
-        name="Ramp"
-        args={[4, 0.25, 1.8]}
-        position={[-1, 1, -6.4]}
+        name="Test"
+        args={[0.25, 0.25, 0.25]}
+        position={[5.64, -1.54, -11.5]}
         rotation={[0, Math.PI / 2, 0.6]}
         receiveShadow
         castShadow>
         <meshStandardMaterial color="white" />
       </Box>
-      <Steps position={[-3, 0, -7.25]} stepHeight={0.2} />
-      <Steps position={[-4, -0.05, -7.25]} stepHeight={0.3} />
-    </group>
+    </>
   );
 }

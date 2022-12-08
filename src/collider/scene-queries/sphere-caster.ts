@@ -210,7 +210,7 @@ export class SphereCaster {
               return false;
             }
 
-            // Clamp so our interval of intersection is [0, 1] now that it is verified.
+            // Clamp so our interval of intersection is [0, 1].
             if (t0 < 0) t0 = 0;
             if (t1 < 0) t1 = 0;
             if (t0 > 1) t0 = 1;
@@ -233,8 +233,6 @@ export class SphereCaster {
               .addScaledVector(this.velocitySpherical, t0);
 
             if (this.triSpherical.containsPoint(planeIntersectionPoint)) {
-              DEBUG.drawTriangle(tri.clone(), { color: 'red', opacity: 0.15, winZFight: true });
-
               foundCollision = true;
               t = t0;
               impactPoint.copy(planeIntersectionPoint);
@@ -242,6 +240,8 @@ export class SphereCaster {
               // Collisions against the face will always be closer than vertex or edge collisions
               // so we can stop checking now.
               // return true;
+
+              console.log('collided: inside', t);
             }
           }
 
@@ -250,25 +250,31 @@ export class SphereCaster {
             let newT = 0 as number | null;
             let edgePoint;
 
-            newT = testVertex(this.triSpherical.a, velocityLengthSqr, t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.a, velocityLengthSqr, t, this.originSpherical, this.velocitySpherical);
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(this.triSpherical.a);
+
+              console.log('collided: vertex a', t);
             }
 
-            newT = testVertex(this.triSpherical.b, velocityLengthSqr, t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.b, velocityLengthSqr, t, this.originSpherical, this.velocitySpherical);
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(this.triSpherical.b);
+
+              console.log('collided: vertex b', t);
             }
 
-            newT = testVertex(this.triSpherical.c, velocityLengthSqr, t, this.originSpherical, this.velocity);
+            newT = testVertex(this.triSpherical.c, velocityLengthSqr, t, this.originSpherical, this.velocitySpherical);
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(this.triSpherical.c);
+
+              console.log('collided: vertex c', t);
             }
 
             [newT, edgePoint] = testEdge(
@@ -277,12 +283,14 @@ export class SphereCaster {
               velocityLengthSqr,
               t,
               this.originSpherical,
-              this.velocity,
+              this.velocitySpherical,
             );
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(edgePoint);
+
+              console.log('collided: edge ab', t);
             }
 
             [newT, edgePoint] = testEdge(
@@ -291,12 +299,14 @@ export class SphereCaster {
               velocityLengthSqr,
               t,
               this.originSpherical,
-              this.velocity,
+              this.velocitySpherical,
             );
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(edgePoint);
+
+              console.log('collided: edge bc', t);
             }
 
             [newT, edgePoint] = testEdge(
@@ -305,12 +315,14 @@ export class SphereCaster {
               velocityLengthSqr,
               t,
               this.originSpherical,
-              this.velocity,
+              this.velocitySpherical,
             );
             if (newT !== null) {
               foundCollision = true;
               t = newT;
               impactPoint.copy(edgePoint);
+
+              console.log('collided: edge ca', t);
             }
           }
 
@@ -323,6 +335,9 @@ export class SphereCaster {
               this.impactPoint.copy(impactPoint).multiplyScalar(this.radius);
               this.t = t;
               this.location.copy(this.origin).addScaledVector(this.velocity, this.t);
+
+              DEBUG.drawTriangle(tri.clone(), { color: 'red', opacity: 0.25, winZFight: true });
+              DEBUG.drawWireTriangle(tri.clone(), { color: 'blue' });
             }
           }
         }
@@ -334,7 +349,5 @@ export class SphereCaster {
       DEBUG.drawPoint(this.location, { color: 'blue' });
       DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
     }
-
-    // console.log(this.distance, this.nearestDistance);
   }
 }
