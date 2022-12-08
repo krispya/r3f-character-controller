@@ -12,8 +12,8 @@ export function Debug({ children }: { children: React.ReactNode }) {
   const scene = useThree((state) => state.scene);
   DEBUG.scene = scene;
 
-  useUpdate((state, dt) => {
-    DEBUG.update(dt);
+  useUpdate(() => {
+    DEBUG.update();
   });
 
   return <DebugContext.Provider value={DEBUG}>{children}</DebugContext.Provider>;

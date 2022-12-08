@@ -5,6 +5,9 @@ import { RayHelper, RayInfo } from './helpers/ray-helper';
 import { SphereInterface, SphereHelper, WireSphereHelper } from './helpers/sphere-helper';
 import { TriangleDebugOptions, TriangleHelper, WireTriangleHelper } from './helpers/triangle-helper';
 
+type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo | SphereInterface;
+type Constructor = new (...args: any[]) => any;
+
 export type DebugMaterialOptions = {
   color?: THREE.ColorRepresentation;
   alwaysOnTop?: boolean;
@@ -12,14 +15,20 @@ export type DebugMaterialOptions = {
   fog?: boolean;
 };
 
-type DebugObjectState = {
-  timer: number;
+type DebugHelper = THREE.Object3D & {
+  dispose: () => void;
+  set: (...args: any[]) => void;
+  setMaterial: (options: DebugMaterialOptions) => void;
+};
+
+type DebugHelperState = {
+  object: DebugObject;
   isActive: boolean;
-  object3D: THREE.Object3D & {
-    dispose: () => void;
-    set: (...args: any[]) => void;
-    setMaterial: (options: DebugMaterialOptions) => void;
-  };
+};
+
+type DebugObjectState = {
+  isActive: boolean;
+  helper: DebugHelper;
   persist: boolean;
 };
 
@@ -31,13 +40,9 @@ type TriangleDrawOptions = TriangleDebugOptions & {
   persist?: boolean;
 };
 
-type DebugObject = THREE.Object3D | THREE.Box3 | THREE.Vector3 | THREE.Triangle | RayInfo | SphereInterface;
-type Constructor = new (...args: any[]) => any;
-
-const DISPOSE_TIMER_DEFAULT = 100;
 const GROUP_NAME = '__debug';
 
-function removeObjectFromPool(debug: Debug, object: DebugObject) {
+function removeObjectFromPool(debug: Debug, object: DebugHelper) {
   const poolIndex = debug.poolKeys.indexOf(object);
   if (poolIndex !== -1) debug.poolKeys.splice(poolIndex, 1);
 }
@@ -50,9 +55,12 @@ function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDra
     // Check if we are calling with the same object. If so, keep it active and update.
     if (debug.debugMap.has(object)) {
       const state = debug.debugMap.get(object);
+      const helperState = debug.helperMap.get(state!.helper);
 
       state!.isActive = true;
-      removeObjectFromPool(debug, object);
+      helperState!.isActive = true;
+
+      removeObjectFromPool(debug, state!.helper);
 
       return;
     }
@@ -60,38 +68,33 @@ function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDra
     const poolOrCreate = () => {
       // Check the pool of inactive helpers and see if we can take over one of them
       // instead of instantiating a new one and wasting all those resources.
-      console.log('pool: ', debug.poolKeys);
-      console.log('map: ', debug.debugMap);
-      for (const poolObject of debug.poolKeys) {
-        const state = debug.debugMap.get(poolObject);
+      for (const poolHelper of debug.poolKeys) {
+        const state = debug.helperMap.get(poolHelper);
 
-        if (state && state.object3D instanceof (constructor as unknown as () => void)) {
-          state!.object3D.set(object);
+        if (state && poolHelper instanceof (constructor as unknown as () => void)) {
+          poolHelper.set(object);
 
-          removeObjectFromPool(debug, poolObject);
+          removeObjectFromPool(debug, poolHelper);
 
           state!.isActive = true;
-          if (options) state!.object3D.setMaterial(options);
+          if (options) poolHelper.setMaterial(options);
 
           return;
         }
-
-        // Clean up any orphaned pool objects.
-        if (!state) removeObjectFromPool(debug, poolObject);
       }
 
       // If all else fails, we assume it is a new debug call that we have to create helpers for.
-      const object3D = constructor ? new constructor(object, options) : object;
-      object3D.userData = { isDebug: true };
+      const helper = constructor ? new constructor(object, options) : object;
+      helper.userData = { isDebug: true };
 
-      debug.group.add(object3D);
-      debug.debugKeys.push(object);
+      debug.group.add(helper);
+      debug.debugKeys.push(helper);
       debug.debugMap.set(object, {
-        timer: debug.disposeTimer,
         isActive: true,
-        object3D: object3D,
+        helper,
         persist: options?.persist ?? false,
       });
+      debug.helperMap.set(helper, { isActive: true, object });
     };
 
     // Defer searching the pool/creating our debug objects for the next phase.
@@ -100,22 +103,21 @@ function createDraw<T extends DebugObject, K extends DebugDrawOptions = DebugDra
 }
 
 export class Debug {
-  private _debugKeys: DebugObject[];
+  private _debugKeys: DebugHelper[];
   private _debugMap: WeakMap<DebugObject, DebugObjectState>;
-  private _poolKeys: DebugObject[];
+  private _helperMap: WeakMap<DebugHelper, DebugHelperState>;
+  private _poolKeys: DebugHelper[];
   private _deferred: (() => void)[];
   private _group: THREE.Group;
   private _scene: THREE.Scene;
 
-  public disposeTimer: number;
-
-  constructor(scene: THREE.Scene, disposeTimer?: number) {
+  constructor(scene: THREE.Scene) {
     this._scene = scene;
     this._debugKeys = [];
     this._debugMap = new WeakMap();
+    this._helperMap = new WeakMap();
     this._poolKeys = [];
     this._deferred = [];
-    this.disposeTimer = disposeTimer ?? DISPOSE_TIMER_DEFAULT;
 
     this._group = new THREE.Group();
     this._group.name = GROUP_NAME;
@@ -128,6 +130,10 @@ export class Debug {
 
   get debugMap() {
     return this._debugMap;
+  }
+
+  get helperMap() {
+    return this._helperMap;
   }
 
   get poolKeys() {
@@ -157,7 +163,7 @@ export class Debug {
     }
   }
 
-  update(dt: number) {
+  update() {
     // In order to know which debug objects can be pooled, we need to wait to see which get
     // referred again in a draw call. Any draw call with a new reference was deferred to now
     // where we can assume any objects left are pooled.
@@ -167,39 +173,26 @@ export class Debug {
 
     this._deferred.length = 0;
 
-    // console.log('keys: ', this._debugKeys);
-    // console.log(this.scene.getObjectByName(GROUP_NAME)?.children);
-    console.log('map after: ', this.debugMap);
-
-    this._debugKeys.forEach((debugObject, index) => {
-      const state = this._debugMap.get(debugObject);
+    this._debugKeys.forEach((helper, index) => {
+      const state = this._helperMap.get(helper);
       if (!state) return;
 
       // No lifecycle if we are persisting.
-      if (state.persist) return;
+      // if (state.persist) return;
 
       if (!state.isActive) {
-        if (state.timer === this.disposeTimer) this._poolKeys.push(debugObject);
-
-        state.timer -= dt * 1000;
-        this.group.remove(state.object3D);
-      }
-
-      if (state.isActive && state.timer < this.disposeTimer) {
-        this.group.add(state.object3D);
-        state.timer = this.disposeTimer;
-      }
-
-      if (state.timer <= 0) {
-        state.object3D.dispose();
-        this._debugMap.delete(debugObject);
+        this.group.remove(helper);
+        helper.dispose();
+        this._helperMap.delete(helper);
+        this._debugMap.delete(state.object);
         this._debugKeys.splice(index, 1);
 
-        removeObjectFromPool(this, debugObject);
+        removeObjectFromPool(this, helper);
 
         return;
       }
 
+      this._poolKeys.push(helper);
       state.isActive = false;
     });
   }
