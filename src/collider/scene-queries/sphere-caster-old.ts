@@ -8,13 +8,13 @@ const pool = { vecA: new THREE.Vector3(), vecB: new THREE.Vector3(), vecC: new T
 
 // Solves a quadratic equation and returns the lowest root between 0 and maxR.
 function getLowestRoot(a: number, b: number, c: number, maxR: number) {
-  const determinant = b * b - 4 * a * c;
+  const discriminant = b * b - 4 * a * c;
 
-  if (determinant < 0) {
+  if (discriminant < 0) {
     return null;
   }
 
-  const sqrtD = Math.sqrt(determinant);
+  const sqrtD = Math.sqrt(discriminant);
   let root1 = (-b - sqrtD) / (2 * a);
   let root2 = (-b + sqrtD) / (2 * a);
 
@@ -23,6 +23,37 @@ function getLowestRoot(a: number, b: number, c: number, maxR: number) {
     root2 = root1;
     root1 = temp;
   }
+
+  if (root1 > 0 && root1 < maxR) {
+    return root1;
+  }
+
+  if (root2 > 0 && root2 < maxR) {
+    return root2;
+  }
+
+  return null;
+}
+
+function getLowestRootTest(a: number, b: number, c: number, maxR: number) {
+  const discriminant = b * b - 4 * a * c;
+
+  if (discriminant < 0) {
+    console.log('vertex: disc < 0');
+    return null;
+  }
+
+  const sqrtD = Math.sqrt(discriminant);
+  let root1 = (-b - sqrtD) / (2 * a);
+  let root2 = (-b + sqrtD) / (2 * a);
+
+  if (root1 > root2) {
+    const temp = root2;
+    root2 = root1;
+    root1 = temp;
+  }
+
+  console.log('vertex: ', root1, root2);
 
   if (root1 > 0 && root1 < maxR) {
     return root1;
@@ -47,7 +78,7 @@ function testVertex(
   const b = 2 * vecA.dot(velocity);
   const c = vecA.lengthSq() - 1;
 
-  return getLowestRoot(a, b, c, t);
+  return getLowestRootTest(a, b, c, t);
 }
 
 function testEdge(
@@ -151,16 +182,6 @@ export class SphereCaster {
     this.direction = direction;
 
     this.update();
-  }
-
-  setCollision() {
-    this.isCollided = true;
-    this.intersectTri = this.tmpTri.slice(0);
-    this.intersectTriNorm = this.tmpTriNorm.slice(0);
-    if (t < this.t) {
-      this.t = t;
-      vec3.scale(this.intersectPoint, point, this.radius);
-    }
   }
 
   intersectMesh(mesh: THREE.Mesh) {

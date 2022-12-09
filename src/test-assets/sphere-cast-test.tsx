@@ -1,5 +1,5 @@
 import { useUpdate } from '@react-three/fiber';
-import { SphereCaster } from 'collider/scene-queries/sphere-caster';
+import { SphereCaster } from 'collider/scene-queries/sphere-caster-gl-matrix';
 import { useCollider } from 'collider/stores/collider-store';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
