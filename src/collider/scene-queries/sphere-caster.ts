@@ -155,6 +155,7 @@ export class SphereCaster {
     this.isCollided = false;
     this.t = 1;
     this.impactPoint.set(0, 0, 0);
+    this.nearestDistance = 1;
 
     DEBUG.drawBox3(this.aabb);
     DEBUG.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
@@ -327,7 +328,7 @@ export class SphereCaster {
           }
 
           if (foundCollision) {
-            const distToCollision = this.velocitySpherical.length() * this.t;
+            const distToCollision = this.velocitySpherical.length() * t;
 
             if (this.isCollided === false || distToCollision < this.nearestDistance) {
               this.nearestDistance = distToCollision;
@@ -345,6 +346,7 @@ export class SphereCaster {
     });
 
     if (this.isCollided) {
+      console.log('t: ', this.t);
       DEBUG.drawPoint(this.impactPoint);
       DEBUG.drawPoint(this.location, { color: 'blue' });
       DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
