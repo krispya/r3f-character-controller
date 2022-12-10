@@ -72,7 +72,7 @@ export function TestExtenstionTerrain() {
         {/* @ts-ignore */}
         <Box
           name="Steep Ramp"
-          args={[5, 0.25, 1.8]}
+          args={[5, 0.01, 1.4]}
           position={[1, 1, -6.4]}
           rotation={[0, Math.PI / 2, 0.9]}
           receiveShadow
@@ -96,8 +96,8 @@ export function TestExtenstionTerrain() {
       <Box
         name="Test"
         args={[0.25, 0.25, 0.25]}
-        position={[5.65, -1.65, -11.5]}
-        // rotation={[0, Math.PI / 2, 0.6]}
+        position={[5.64, -1.74, -11.5]}
+        rotation={[0, Math.PI / 2, 0.6]}
         receiveShadow
         castShadow>
         <meshStandardMaterial color="white" />

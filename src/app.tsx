@@ -41,12 +41,12 @@ function Game() {
         capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
         // slopeLimit={90}
         // gravity={-1}
-        debug>
+      >
         <Wander />
       </PlayerController>
       <CameraController />
 
-      <SphereCastTest origin={[5.45, -1.5, -10.7]} radius={0.25} maxDistance={1} />
+      <SphereCastTest origin={[4.65, -1.8, -10.7]} radius={0.25} distance={2} />
 
       <Space />
       <ambientLight intensity={0.5} />

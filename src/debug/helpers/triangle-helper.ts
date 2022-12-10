@@ -3,6 +3,8 @@ import * as THREE from 'three';
 
 export type TriangleDebugOptions = { winZFight: boolean } & DebugMaterialOptions;
 
+const zFightOffset = 0.001;
+
 export class TriangleHelper extends THREE.Mesh {
   public triangle: THREE.Triangle;
   public winZFight: boolean;
@@ -20,9 +22,9 @@ export class TriangleHelper extends THREE.Mesh {
     triangle.getNormal(normal);
 
     if (options?.winZFight) {
-      a.addScaledVector(normal, 0.001);
-      b.addScaledVector(normal, 0.001);
-      c.addScaledVector(normal, 0.001);
+      a.addScaledVector(normal, zFightOffset);
+      b.addScaledVector(normal, zFightOffset);
+      c.addScaledVector(normal, zFightOffset);
     }
 
     const points = [a, b, c];
@@ -53,11 +55,12 @@ export class TriangleHelper extends THREE.Mesh {
     this.a.copy(triangle.a);
     this.b.copy(triangle.b);
     this.c.copy(triangle.c);
+    triangle.getNormal(this.normal);
 
     if (this.winZFight) {
-      this.a.addScaledVector(this.normal, 0.001);
-      this.b.addScaledVector(this.normal, 0.001);
-      this.c.addScaledVector(this.normal, 0.001);
+      this.a.addScaledVector(this.normal, zFightOffset);
+      this.b.addScaledVector(this.normal, zFightOffset);
+      this.c.addScaledVector(this.normal, zFightOffset);
     }
   }
 

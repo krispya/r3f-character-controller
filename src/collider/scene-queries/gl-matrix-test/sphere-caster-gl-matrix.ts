@@ -2,121 +2,11 @@ import { getDebug } from 'debug/react/debug';
 import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
 // @ts-ignore
-import { traceSphereTriangle, TraceInfo } from 'gl-swept-sphere-triangle';
+import { traceSphereTriangle, TraceInfo } from '.';
 
 const DEBUG = getDebug();
 
 const pool = { vecA: new THREE.Vector3(), vecB: new THREE.Vector3(), vecC: new THREE.Vector3() };
-
-// Solves a quadratic equation and returns the lowest root between 0 and maxR.
-function getLowestRoot(a: number, b: number, c: number, maxR: number) {
-  const discriminant = b * b - 4 * a * c;
-
-  if (discriminant < 0) {
-    return null;
-  }
-
-  const sqrtD = Math.sqrt(discriminant);
-  let root1 = (-b - sqrtD) / (2 * a);
-  let root2 = (-b + sqrtD) / (2 * a);
-
-  if (root1 > root2) {
-    const temp = root2;
-    root2 = root1;
-    root1 = temp;
-  }
-
-  if (root1 > 0 && root1 < maxR) {
-    return root1;
-  }
-
-  if (root2 > 0 && root2 < maxR) {
-    return root2;
-  }
-
-  return null;
-}
-
-function getLowestRootTest(a: number, b: number, c: number, maxR: number) {
-  const discriminant = b * b - 4 * a * c;
-
-  if (discriminant < 0) {
-    console.log('vertex: disc < 0');
-    return null;
-  }
-
-  const sqrtD = Math.sqrt(discriminant);
-  let root1 = (-b - sqrtD) / (2 * a);
-  let root2 = (-b + sqrtD) / (2 * a);
-
-  if (root1 > root2) {
-    const temp = root2;
-    root2 = root1;
-    root1 = temp;
-  }
-
-  console.log('vertex: ', root1, root2);
-
-  if (root1 > 0 && root1 < maxR) {
-    return root1;
-  }
-
-  if (root2 > 0 && root2 < maxR) {
-    return root2;
-  }
-
-  return null;
-}
-
-function testVertex(
-  vertex: THREE.Vector3,
-  velocityLengthSqr: number,
-  t: number,
-  origin: THREE.Vector3,
-  velocity: THREE.Vector3,
-) {
-  const vecA = pool.vecA.subVectors(vertex, origin);
-  const a = velocityLengthSqr;
-  const b = 2 * vecA.dot(velocity);
-  const c = vecA.lengthSq() - 1;
-
-  return getLowestRootTest(a, b, c, t);
-}
-
-function testEdge(
-  vertexA: THREE.Vector3,
-  vertexB: THREE.Vector3,
-  velocityLengthSqr: number,
-  t: number,
-  origin: THREE.Vector3,
-  velocity: THREE.Vector3,
-): [number | null, THREE.Vector3] {
-  const edge = pool.vecA.subVectors(vertexB, vertexA);
-  const originToVertex = pool.vecB.subVectors(vertexA, origin);
-
-  const edgeLengthSqr = edge.lengthSq();
-  const edgeDotVelocity = edge.dot(velocity);
-  const edgeDotOriginToVertex = edge.dot(originToVertex);
-
-  const a = edgeLengthSqr * -velocityLengthSqr + edgeDotVelocity * edgeDotVelocity;
-  const b = edgeLengthSqr * (2 * velocity.dot(originToVertex)) - 2 * edgeDotVelocity * edgeDotOriginToVertex;
-  const c = edgeLengthSqr * (1 - originToVertex.lengthSq()) + edgeDotOriginToVertex * edgeDotOriginToVertex;
-
-  const newT = getLowestRoot(a, b, c, t);
-
-  if (newT !== null) {
-    // Check if intersection is within the line segment.
-    const f = (edgeDotVelocity * newT - edgeDotOriginToVertex) / edgeLengthSqr;
-    console.log('f: ', f);
-
-    if (f >= 0 && f <= 1) {
-      const point = pool.vecC.copy(vertexA).addScaledVector(edge, f);
-      return [newT, point];
-    }
-  }
-
-  return [null, vertexA];
-}
 
 export class SphereCaster {
   public origin: THREE.Vector3;
@@ -191,10 +81,6 @@ export class SphereCaster {
 
   intersectMesh(mesh: THREE.Mesh) {
     if (this.needsUpdate) this.update();
-    this.isCollided = false;
-    this.t = 1;
-    this.impactPoint.set(0, 0, 0);
-    this.nearestDistance = Infinity;
 
     this.traceInfo.resetTrace(
       [this.origin.x, this.origin.y, this.origin.z],
@@ -204,8 +90,6 @@ export class SphereCaster {
 
     DEBUG.drawBox3(this.aabb);
     DEBUG.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
-
-    console.log(this.traceInfo);
 
     mesh.geometry.boundsTree?.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(this.aabb),
@@ -229,10 +113,9 @@ export class SphereCaster {
         this.traceInfo.intersectPoint[2],
       );
 
-      console.log('t: ', this.traceInfo.t);
       DEBUG.drawPoint(this.impactPoint);
-      DEBUG.drawPoint(this.location, { color: 'blue' });
-      DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
+      DEBUG.drawPoint(this.location, { color: 'purple' });
+      DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'purple', opacity: 0.5 });
     }
   }
 }
