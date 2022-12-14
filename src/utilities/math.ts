@@ -70,7 +70,6 @@ export function quatSmoothDamp2(
 
   return new THREE.Quaternion(result.x, result.y, result.z, result.w);
 }
-<<<<<<< HEAD:src/utilities/math.ts
 
 export function testSlope(normal: THREE.Vector3, upDirection: THREE.Vector3, slopeLimit: number) {
   const dp = normal.dot(upDirection);
@@ -93,5 +92,3 @@ export function equalToZero(num: number) {
 export function isEqualTolerance(x: number, y: number, tolerance?: number) {
   return Math.abs(x - y) < (tolerance ?? DEFAULT_TOLERANCE);
 }
-=======
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055:src/utilities/quatDamp.ts

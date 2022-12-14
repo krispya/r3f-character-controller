@@ -6,7 +6,6 @@ import { useModifiers } from './modifiers/use-modifiers';
 import { CharacterControllerContext } from './contexts/character-controller-context';
 import { useInterpret } from '@xstate/react';
 import { movementMachine } from './machines/movement-machine';
-<<<<<<< HEAD
 import { Capsule } from 'collider/geometry/capsule';
 import { capsuleCastMTD } from 'collider/scene-queries/capsule-cast-mtd';
 import { CapsuleWireframe } from 'collider/geometry/debug/capsule-wireframe';
@@ -49,11 +48,6 @@ export type ComputePenetrationFn = (
   colliderB: THREE.BufferGeometry,
   transformB: THREE.Matrix4,
 ) => MTD | null;
-=======
-import { AirCollision } from './modifiers/air-collision';
-import { VolumeDebug } from './bounding-volume/volume-debug';
-import { SmoothDamp } from '@gsimone/smoothdamp';
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
 
 export type CharacterControllerProps = {
   id: string;
@@ -88,11 +82,6 @@ export function CharacterController({
 
   const [pool] = useState({ vecA: new THREE.Vector3(), vecB: new THREE.Vector3() });
   const [store] = useState({
-<<<<<<< HEAD
-=======
-    vec: new THREE.Vector3(),
-    vec2: new THREE.Vector3(),
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
     deltaVector: new THREE.Vector3(),
     isGrounded: false,
     isGroundedMovement: false,
@@ -106,20 +95,12 @@ export function CharacterController({
     movement: new THREE.Vector3(),
     maxDistance: 0,
     direction: new THREE.Vector3(),
-<<<<<<< HEAD
     collision: false,
     hitInfo: null as HitInfo | null,
     mtd: null as MTD | null,
     // FSM store
     isModeReady: true,
     timer: 0,
-=======
-    targetAngle: 0,
-    currentAngle: 0,
-    currentQuat: new THREE.Quaternion(),
-    targetQuat: new THREE.Quaternion(),
-    smoothDamp: new SmoothDamp(rotateTime, 100),
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
   });
 
   // Get movement modifiers.
@@ -227,7 +208,6 @@ export function CharacterController({
         angle = calculateSlope(store.hitInfo.normal);
       }
 
-<<<<<<< HEAD
       if (angle >= slopeLimit) {
         store.isSliding = true;
       }
@@ -237,84 +217,6 @@ export function CharacterController({
     }
 
     const hit = detectGround(snapToGround, true);
-=======
-    direction.normalize().negate();
-  };
-
-  // Applies forces to the character, then checks for collision.
-  // If one is detected then the character is moved to no longer collide.
-  const step = useCallback(
-    (delta: number) => {
-      if (!collider?.geometry.boundsTree || !character) return;
-
-      const { line, vec, vec2, box, velocity, deltaVector, groundNormal, prevLine } = store;
-      const { boundingCapsule: capsule, boundingBox } = character;
-      let collisionSlopeCheck = false;
-
-      // Start by moving the character.
-      moveCharacter(velocity, delta);
-
-      // Update bounding volume.
-      character.computeBoundingVolume();
-      line.copy(capsule.line);
-      box.copy(boundingBox);
-
-      // Check for collisions.
-      collider.geometry.boundsTree.shapecast({
-        intersectsBounds: (bounds) => bounds.intersectsBox(box),
-        intersectsTriangle: (tri) => {
-          const triPoint = vec;
-          const capsulePoint = vec2;
-          const distance = tri.closestPointToSegment(line, triPoint, capsulePoint);
-
-          // If the distance is less than the radius of the character, we have a collision.
-          if (distance < capsule.radius) {
-            const depth = capsule.radius - distance;
-            const direction = capsulePoint.sub(triPoint).normalize();
-
-            // Check if the tri we collide with is within our slope limit.
-            const dot = direction.dot(vec.set(0, 1, 0));
-            const angle = THREE.MathUtils.radToDeg(Math.acos(dot));
-            collisionSlopeCheck = angle <= slopeLimit && angle >= 0;
-
-            // We zero out the y component of the direction so that we don't slide up slopes.
-            // This is an approximation that works because of small step sizes.
-            if (!collisionSlopeCheck && store.isGroundedMovement) direction.y = 0;
-
-            // Move the line segment so there is no longer an intersection.
-            line.start.addScaledVector(direction, depth);
-            line.end.addScaledVector(direction, depth);
-          }
-        },
-      });
-
-      const newPosition = vec;
-      deltaVector.set(0, 0, 0);
-      // Bounding volume origin is calculated. This might lose percision.
-      line.getCenter(newPosition);
-      deltaVector.subVectors(newPosition, character.position);
-
-      // Discard values smaller than our tolerance.
-      const offset = Math.max(0, deltaVector.length() - 1e-7);
-      deltaVector.normalize().multiplyScalar(offset);
-
-      character.position.add(deltaVector);
-
-      const [isGrounded, face] = detectGround();
-      // If collision slope check is passed, see if our character is over ground so we don't hover.
-      // If we fail the collision slop check, double check it by casting down.
-      // Can definitely clean this up.
-      if (collisionSlopeCheck) {
-        if (isGrounded && face) {
-          store.isGrounded = true;
-          groundNormal.copy(face.normal);
-        } else {
-          store.isGrounded = false;
-          groundNormal.set(0, 0, 0);
-        }
-      } else {
-        face ? groundNormal.copy(face.normal) : groundNormal.set(0, 0, 0);
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
 
     if (hit && centerTest) {
       const angle = calculateSlope(hit.normal);
@@ -359,7 +261,6 @@ export function CharacterController({
     }
   };
 
-<<<<<<< HEAD
   const calculateMovement = (dt: number) => {
     store.velocity.set(0, 0, 0);
     store.direction.set(0, 0, 0);
@@ -368,13 +269,8 @@ export function CharacterController({
     for (const modifier of modifiers) {
       store.velocity.add(modifier.value);
       // console.log(modifier.name, modifier.value);
-=======
-    for (let i = 0; i < iterations; i++) {
-      step(delta / iterations);
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
     }
 
-<<<<<<< HEAD
     // Movement is the local space vector provided by velocity for a given dt.
     store.movement.addScaledVector(store.velocity, dt);
     store.maxDistance = store.movement.length();
@@ -383,12 +279,6 @@ export function CharacterController({
 
   const moveCharacter = () => {
     const { boundingCapsule: capsule, matrix, position } = store.character;
-=======
-  // Sync mesh so movement is visible.
-  useUpdate(() => {
-    syncMeshToBoundingVolume();
-  }, Stages.Update);
->>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
 
     [store.hitInfo, store.mtd] = capsuleCastMTD(
       capsule.radius,
