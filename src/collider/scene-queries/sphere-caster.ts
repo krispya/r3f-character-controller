@@ -1,8 +1,8 @@
-import { getDebug } from 'debug/react/debug';
+import { getDrafter } from '@draft-n-draw/react';
 import * as THREE from 'three';
 import { ExtendedTriangle } from 'three-mesh-bvh';
 
-const DEBUG = getDebug();
+const drafter = getDrafter();
 
 const pool = { vecA: new THREE.Vector3(), vecB: new THREE.Vector3(), vecC: new THREE.Vector3() };
 
@@ -188,8 +188,8 @@ export class SphereCaster {
     this._t = 1;
     this.impactPoint.set(0, 0, 0);
 
-    DEBUG.drawBox3(this.aabb);
-    DEBUG.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
+    drafter.drawBox3(this.aabb);
+    drafter.drawRay({ origin: this.origin, direction: this.direction, distance: this.distance });
 
     mesh.geometry.boundsTree?.shapecast({
       intersectsBounds: (bounds) => bounds.intersectsBox(this.aabb),
@@ -263,7 +263,7 @@ export class SphereCaster {
         // during which it intersects with the triangle plane.
         // Collisions cannot happen outside that range.
 
-        DEBUG.drawWireTriangle(triR3.clone(), { color: 'blue', alwaysOnTop: true, opacity: 0.5 });
+        drafter.drawWireTriangle(triR3.clone(), { color: 'blue', alwaysOnTop: true, opacity: 0.5 });
 
         if (!isEmbeddedInPlane) {
           // Check if the sphere intersection with the plane is inside the triangle.
@@ -297,10 +297,10 @@ export class SphereCaster {
       this.location.copy(this.origin).addScaledVector(this.velocity, this._t);
       this.impactPoint.multiplyScalar(this.radius);
 
-      DEBUG.drawTriangle(debugTri.clone(), { color: 'red', opacity: 0.25, winZFight: true });
-      DEBUG.drawPoint(this.impactPoint);
-      DEBUG.drawPoint(this.location, { color: 'blue' });
-      DEBUG.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
+      drafter.drawTriangle(debugTri.clone(), { color: 'red', opacity: 0.25, winZFight: true });
+      drafter.drawPoint(this.impactPoint);
+      drafter.drawPoint(this.location, { color: 'blue' });
+      drafter.drawWireSphere({ center: this.location, radius: this.radius }, { color: 'blue', opacity: 0.5 });
     }
   }
 }

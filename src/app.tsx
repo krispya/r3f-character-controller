@@ -11,8 +11,8 @@ import { TestExtenstionTerrain } from 'test-assets/test-extension-terrain';
 import { InputSystem } from 'input/input-system';
 import { Wander } from 'test-assets/wander';
 import * as THREE from 'three';
-import { Debug } from 'debug/react/debug';
 import { SphereCastTest } from 'test-assets/sphere-cast-test';
+import { Drafter } from '@draft-n-draw/react';
 // import { CastTest } from 'test-assets/cast-test';
 
 const FIXED_STEP = 1 / 60;
@@ -75,9 +75,9 @@ export default function App() {
   return (
     <Canvas shadows gl={{ physicallyCorrectLights: true }}>
       <StrictMode>
-        <Debug>
+        <Drafter>
           <Game />
-        </Debug>
+        </Drafter>
       </StrictMode>
     </Canvas>
   );
