@@ -38,11 +38,20 @@ function Game() {
         position={[4, 0, -9]}
         walkSpeed={3.8}
         airControl={0.5}
+<<<<<<< HEAD
         capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
         // slopeLimit={90}
         // gravity={-1}
       >
         <Wander />
+=======
+        capsule={{ radius: 0.27 }}
+        slopeLimit={50}
+        gravity={-14}
+        // debug={{ showBox: true, showCollider: true }}
+      >
+        <MushroomBoi scale={0.25} rotation={[0, -Math.PI / 2, 0]} />
+>>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
       </PlayerController>
       <CameraController />
 

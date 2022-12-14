@@ -39,6 +39,7 @@ export function TestExtenstionTerrain() {
   // }, Stages.Fixed);
 
   return (
+<<<<<<< HEAD
     <>
       <group position={[2, -2.8, -5.5]} rotation={[0, -0.15, 0]}>
         {/* @ts-ignore */}
@@ -103,5 +104,29 @@ export function TestExtenstionTerrain() {
         <meshStandardMaterial color="white" />
       </Box>
     </>
+=======
+    <group position={[2, -2.8, -5.5]} rotation={[0, -0.15, 0]}>
+      <Box name="Floor Platform" ref={platformARef} args={[4, 0.5, 4]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Box name="Elevator Platform" ref={platformBRef} args={[1.5, 0.25, 1]} position={[4, 0.5, -7.2]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Box name="Floor" args={[12, 0.25, 6]} position={[0, 0, -5]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Box name="Wall" args={[3.5, 0.5, 12]} position={[0, 1.625, -8]} rotation={[0, Math.PI / 2, Math.PI / 2]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Box name="Steep Ramp" args={[5, 0.25, 1.8]} position={[1, 1, -6.4]} rotation={[0, Math.PI / 2, 0.9]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Box name="Ramp" args={[4, 0.25, 1.8]} position={[-1, 1, -6.4]} rotation={[0, Math.PI / 2, 0.6]}>
+        <meshStandardMaterial color="white" />
+      </Box>
+      <Steps position={[-3, 0, -7.25]} stepHeight={0.2} />
+      <Steps position={[-4, 0, -7.25]} stepHeight={0.3} />
+    </group>
+>>>>>>> c8023c37bbcf6e8ad75d08aa77e54c712e4fb055
   );
 }
