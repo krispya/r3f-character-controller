@@ -1,42 +1,45 @@
-import { OrbitControls } from '@react-three/drei';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useUpdate, useThree, Stages } from '@react-three/fiber';
 import { useCameraController } from './stores/camera-store';
-
-// TODO: Implement the PerspectiveCamera with portaling
+import { OrbitControls as OrbitControlsImp } from 'three-stdlib';
 
 export function CameraController() {
-  const [camera] = useState(() => {
-    const _camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    _camera.position.set(2, 3, -2);
-    return _camera;
-  });
-  const controlsRef = useRef<any>(null!);
+  const controlsRef = useRef<OrbitControlsImp>(null!);
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null!);
   const target = useCameraController((state) => state.target);
-  const set = useThree(({ set }) => set);
+  const { set, camera } = useThree(({ set, camera }) => ({ set, camera }));
 
   useLayoutEffect(() => {
     const oldCam = camera;
-    set(() => ({ camera: camera! }));
+    set(() => ({ camera: cameraRef.current }));
     return () => set(() => ({ camera: oldCam }));
   }, [camera, set]);
 
   useUpdate(() => {
     if (!target) return;
-    camera.position.sub(controlsRef.current.target);
+    cameraRef.current.position.sub(controlsRef.current.target);
     controlsRef.current.target.copy(target.position);
-    camera.position.add(target.position);
+    cameraRef.current.position.add(target.position);
   }, Stages.Update);
 
   return (
-    <OrbitControls
-      dampingFactor={0.1}
-      ref={controlsRef}
-      camera={camera}
-      minDistance={1}
-      maxDistance={3}
-      maxPolarAngle={Math.PI / 2}
-    />
+    <>
+      {/* @ts-ignore */}
+      <PerspectiveCamera
+        args={[75, window.innerWidth / window.innerHeight, 0.1, 1000]}
+        ref={cameraRef}
+        position={[2, 3, -2]}
+      />
+      <OrbitControls
+        dampingFactor={0.1}
+        ref={controlsRef}
+        camera={cameraRef.current}
+        minDistance={1}
+        maxDistance={3}
+        maxPolarAngle={Math.PI / 2}
+      />
+    </>
   );
 }
