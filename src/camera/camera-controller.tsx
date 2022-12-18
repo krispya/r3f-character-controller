@@ -27,11 +27,7 @@ export function CameraController() {
   return (
     <>
       {/* @ts-ignore */}
-      <PerspectiveCamera
-        args={[75, window.innerWidth / window.innerHeight, 0.1, 1000]}
-        ref={cameraRef}
-        position={[2, 3, -2]}
-      />
+      <PerspectiveCamera fov={75} ref={cameraRef} position={[2, 3, -2]} />
       <OrbitControls
         dampingFactor={0.1}
         ref={controlsRef}
