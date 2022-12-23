@@ -14,6 +14,9 @@ import * as THREE from 'three';
 import { SphereCastTest } from 'test-assets/sphere-cast-test';
 import { Drafter } from '@draft-n-draw/react';
 // import { CastTest } from 'test-assets/cast-test';
+import { VibrantScene } from './test-assets/vibrant-scene';
+import { VibrantSceneExtra } from 'test-assets/vibrant-scene-extra';
+import { Char } from 'test-assets/char';
 
 const FIXED_STEP = 1 / 60;
 
@@ -27,26 +30,23 @@ function Game() {
     <Suspense>
       <InputSystem />
 
-      <Fauna />
       <Collider>
-        <Terrain />
-        <TestExtenstionTerrain />
+        <VibrantScene />
       </Collider>
+      <VibrantSceneExtra />
 
       <PlayerController
         id="player"
         position={[4, 0, -9]}
         walkSpeed={3.8}
         airControl={0.5}
-        capsule={{ radius: 0.25, height: 1.15, center: new THREE.Vector3(0, -0.25, 0) }}
+        capsule={{ radius: 0.25, height: 0.5, center: new THREE.Vector3(0, -0.25, 0) }}
         // slopeLimit={90}
         // gravity={-1}
       >
-        <Wander />
+        <Char />
       </PlayerController>
       <CameraController />
-
-      <SphereCastTest origin={[4.65, -1.8, -10.7]} radius={0.25} distance={2} />
 
       <Space />
       <ambientLight intensity={0.5} />

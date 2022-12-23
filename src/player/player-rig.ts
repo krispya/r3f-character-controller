@@ -30,8 +30,8 @@ export function PlayerRig() {
 
   useEffect(() => {
     actions?.Walking?.play();
-    actions?.Idle?.play();
-    store.active = actions?.Idle;
+    actions?.Idling?.play();
+    store.active = actions?.Idling;
     console.log(actions);
   }, [actions, store]);
 
@@ -41,7 +41,7 @@ export function PlayerRig() {
         console.log('idling');
         if (!actions) return;
 
-        fadeToAction('Idle', 0.3);
+        fadeToAction('Idling', 0.3);
       },
       onFall: () => {
         console.log('falling');
@@ -53,7 +53,7 @@ export function PlayerRig() {
         console.log('walking');
         if (!actions) return;
 
-        fadeToAction('Walk', 0.3);
+        fadeToAction('Walking', 0.3);
       },
     },
   });

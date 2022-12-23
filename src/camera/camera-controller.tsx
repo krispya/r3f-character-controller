@@ -34,7 +34,7 @@ export function CameraController() {
         camera={cameraRef.current}
         minDistance={1}
         maxDistance={3}
-        maxPolarAngle={Math.PI / 2}
+        // maxPolarAngle={Math.PI / 2}
       />
     </>
   );

@@ -96,7 +96,7 @@ export function PlayerController({
 
     // Reset player position if we fall too far down.
 
-    if (character.position.y < -10) {
+    if (character.position.y < -40) {
       if (props.position) {
         if (Array.isArray(props.position)) character.position.set(...props.position);
         if (props.position instanceof THREE.Vector3) character.position.copy(props.position);

@@ -233,9 +233,9 @@ export function CharacterController({
 
       // Only snap to ground if we are above nearly flat terrain.
       // It's a bit of a workaround but it works for now.www
-      if (deltaVector.length() > TOLERANCE && Math.abs(angle) <= 30) {
-        store.character.position.copy(hit.location);
-      }
+      // if (deltaVector.length() > TOLERANCE && Math.abs(angle) <= 30) {
+      //   store.character.position.copy(hit.location);
+      // }
 
       // console.log('cc grounded');
     }
